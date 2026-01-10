@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, useWindowDimensions, SafeAreaView, Platform, StatusBar } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, useWindowDimensions, SafeAreaView, Platform, StatusBar, Share, Alert } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import Animated, { FadeOut, Layout } from 'react-native-reanimated';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
@@ -32,13 +32,27 @@ const initialNotifications = [
     },
     {
         id: '3',
-        title: 'Security Update',
-        description: 'Your MPIN has been updated successfully.',
-        time: '1d ago',
+        title: 'Document Received',
+        description: 'You received "Project_Brief.pdf" from John.',
+        time: '2h ago',
+        unread: true,
+        type: 'document',
+        color: '#E0E7FF', // Indigo 100
+        iconColor: '#6366F1',
+        canShare: true,
+        shareText: 'Project_Brief.pdf'
+    },
+    {
+        id: '4',
+        title: 'New Business Card',
+        description: 'Apeksha shared their digital business card.',
+        time: '5h ago',
         unread: false,
-        type: 'security',
-        color: '#FEE2E2',
-        iconColor: '#EF4444'
+        type: 'card',
+        color: '#FCE7F3', // Pink 100
+        iconColor: '#EC4899',
+        canShare: true,
+        shareText: 'Apeksha\'s Business Card'
     }
 ];
 
@@ -56,6 +70,16 @@ const NotificationItem = ({ item, onMarkRead, onDelete }: { item: any, onMarkRea
             <Feather name="check" size={24} color="#FFFFFF" />
         </View>
     );
+
+    const handleShare = async () => {
+        try {
+            await Share.share({
+                message: `Check out this ${item.shareText || 'content'} from DocLock!`,
+            });
+        } catch (error: any) {
+            Alert.alert(error.message);
+        }
+    };
 
     return (
         <Animated.View layout={Layout.springify()} exiting={FadeOut}>
@@ -78,8 +102,12 @@ const NotificationItem = ({ item, onMarkRead, onDelete }: { item: any, onMarkRea
                     <View style={[styles.iconContainer, { backgroundColor: item.color }]}>
                         {item.type === 'security' ? (
                             <Feather name="lock" size={20} color={item.iconColor} />
-                        ) : (
+                        ) : item.type === 'qr' ? (
                             <MaterialCommunityIcons name="qrcode" size={20} color={item.iconColor} />
+                        ) : item.type === 'document' ? (
+                            <Feather name="file-text" size={20} color={item.iconColor} />
+                        ) : (
+                            <Feather name="credit-card" size={20} color={item.iconColor} />
                         )}
                     </View>
                     <View style={styles.textContainer}>
@@ -91,6 +119,14 @@ const NotificationItem = ({ item, onMarkRead, onDelete }: { item: any, onMarkRea
                             </View>
                         </View>
                         <Text style={styles.cardDescription}>{item.description}</Text>
+
+                        {/* Share Action Button */}
+                        {item.canShare && (
+                            <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
+                                <Feather name="share-2" size={14} color="#7C3AED" />
+                                <Text style={styles.shareText}>Share</Text>
+                            </TouchableOpacity>
+                        )}
                     </View>
                 </View>
             </Swipeable>
@@ -122,7 +158,11 @@ export default function NotificationScreen({ onNavigate }: NotificationScreenPro
 
     return (
         <SafeAreaView style={styles.container}>
-            <StatusBar barStyle={showClearConfirm ? "light-content" : "dark-content"} />
+            <LinearGradient
+                colors={['#F3E8FF', '#FFFFFF']}
+                style={StyleSheet.absoluteFillObject}
+            />
+            <StatusBar barStyle="dark-content" />
 
             {/* Header */}
             <View style={styles.header}>
@@ -186,7 +226,7 @@ export default function NotificationScreen({ onNavigate }: NotificationScreenPro
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F8FAFC', // Very light grey/white background
+        backgroundColor: '#FFFFFF', // Fallback
         paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
     },
     header: {
@@ -195,7 +235,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: 20,
         paddingVertical: 16,
-        backgroundColor: '#F8FAFC',
+        // Transparent background to let gradient show
     },
     headerTitle: {
         fontSize: 18,
@@ -205,12 +245,9 @@ const styles = StyleSheet.create({
     actionButton: {
         width: 40,
         height: 40,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
+        // Removed boxy styles
     },
     scrollContent: {
         paddingHorizontal: 20,
@@ -232,11 +269,11 @@ const styles = StyleSheet.create({
         alignItems: 'flex-start',
         borderWidth: 1,
         borderColor: '#F1F5F9',
-        shadowColor: '#E2E8F0',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.5,
-        shadowRadius: 10,
-        elevation: 2,
+        shadowColor: '#6B21A8', // Purple shadow
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.05, // Much softer
+        shadowRadius: 16,
+        elevation: 1,
     },
     iconContainer: {
         width: 48,
@@ -379,7 +416,7 @@ const styles = StyleSheet.create({
         color: '#64748B',
     },
     leftAction: {
-        backgroundColor: '#6366F1', // Indigo 500 (Theme styling)
+        backgroundColor: '#7C3AED', // Violet 600
         justifyContent: 'center',
         alignItems: 'flex-start', // Icon on left
         paddingLeft: 32,
@@ -395,5 +432,23 @@ const styles = StyleSheet.create({
         flex: 1,
         borderRadius: 20,
         marginBottom: 12,
+    },
+    shareButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 12,
+        backgroundColor: 'transparent',
+        alignSelf: 'flex-start',
+        paddingVertical: 6,
+        paddingHorizontal: 14,
+        borderRadius: 50, // Pill shape
+        borderWidth: 1,
+        borderColor: '#7C3AED', // Violet border
+        gap: 6,
+    },
+    shareText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#7C3AED',
     },
 });

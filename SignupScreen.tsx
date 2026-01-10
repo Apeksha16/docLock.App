@@ -27,6 +27,28 @@ export default function SignupScreen({ onNavigate }: SignupScreenProps) {
     const [isNameFocused, setIsNameFocused] = useState(false);
     const [isMobileFocused, setIsMobileFocused] = useState(false);
 
+    const [fullName, setFullName] = useState('');
+    const [mobileNumber, setMobileNumber] = useState('');
+
+    // Validation
+    const isValidMobile = /^[6-9][0-9]{9}$/.test(mobileNumber);
+    const isValidName = fullName.trim().length > 0 && /^[a-zA-Z\s]*$/.test(fullName);
+    const isValid = isValidMobile && isValidName;
+
+    const handleNameChange = (text: string) => {
+        // Only allow alphabets and spaces
+        if (/^[a-zA-Z\s]*$/.test(text)) {
+            setFullName(text);
+        }
+    };
+
+    const handleMobileChange = (text: string) => {
+        const numericValue = text.replace(/[^0-9]/g, '');
+        if (numericValue.length <= 10) {
+            setMobileNumber(numericValue);
+        }
+    };
+
     return (
         <View style={[
             styles.container,
@@ -78,6 +100,8 @@ export default function SignupScreen({ onNavigate }: SignupScreenProps) {
                         ]}
                         placeholder="Enter your full name"
                         placeholderTextColor="#94A3B8"
+                        value={fullName}
+                        onChangeText={handleNameChange}
                         onFocus={() => setIsNameFocused(true)}
                         onBlur={() => setIsNameFocused(false)}
                     />
@@ -94,6 +118,9 @@ export default function SignupScreen({ onNavigate }: SignupScreenProps) {
                         placeholder="Enter 10-digit number"
                         placeholderTextColor="#94A3B8"
                         keyboardType="phone-pad"
+                        value={mobileNumber}
+                        onChangeText={handleMobileChange}
+                        maxLength={10}
                         onFocus={() => setIsMobileFocused(true)}
                         onBlur={() => setIsMobileFocused(false)}
                     />
@@ -101,11 +128,19 @@ export default function SignupScreen({ onNavigate }: SignupScreenProps) {
 
                 {/* CTA Button */}
                 <Pressable
+                    disabled={!isValid}
                     onPressIn={() => setIsHovered(true)}
                     onPressOut={() => setIsHovered(false)}
+                    // Assuming similar navigation logic as Login
+                    // onPress={() => onNavigate('otp', mobileNumber)} 
+                    // But interface says 'login' only? The user likely wants to go to OTP after signup too, 
+                    // but the props definition only has 'login'. I'll enable the visual but keep existing (no-op or whatever logic exists)
+                    // Wait, the existing code didn't even have onPress logic. 
+                    // I will leave onPress empty but respect the disable state.
                     style={({ pressed }) => [
                         styles.button,
-                        (pressed || isHovered) && styles.buttonPressed
+                        !isValid && styles.buttonDisabled,
+                        (pressed || isHovered) && isValid && styles.buttonPressed
                     ]}
                 >
                     <Text style={styles.buttonText}>Get OTP</Text>
@@ -279,5 +314,11 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: '#94A3B8',
         fontWeight: '500',
+    },
+    buttonDisabled: {
+        backgroundColor: '#C4B5FD',
+        opacity: 0.7,
+        shadowOpacity: 0,
+        elevation: 0,
     },
 });

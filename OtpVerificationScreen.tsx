@@ -7,7 +7,9 @@ import {
     TouchableOpacity,
     useWindowDimensions,
     Pressable,
-    Keyboard
+    Keyboard,
+    Platform,
+    ActivityIndicator
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -49,6 +51,16 @@ export default function OtpVerificationScreen({ mobileNumber, onNavigate }: OtpV
         // Auto-focus next input
         if (text && index < 5) {
             inputs.current[index + 1]?.focus();
+        }
+
+        // Auto-submit if all fields are filled
+        if (text && newOtp.every(digit => digit !== '')) {
+            Keyboard.dismiss();
+            setIsLoading(true);
+            setTimeout(() => {
+                setIsLoading(false);
+                onNavigate('dashboard');
+            }, 2000); // 2 seconds delay for dummy loader
         }
     };
 
@@ -135,20 +147,16 @@ export default function OtpVerificationScreen({ mobileNumber, onNavigate }: OtpV
                     Resend code in <Text style={styles.timerText}>{timer}s</Text>
                 </Text>
 
-                {/* Verify Button */}
-                <TouchableOpacity
-                    style={styles.verifyButton}
-                    onPress={handleVerify}
-                    disabled={isLoading}
-                >
-                    {isLoading ? (
-                        <Text style={styles.verifyButtonText}>Verifying...</Text>
-                    ) : (
-                        <Text style={styles.verifyButtonText}>Verify</Text>
-                    )}
-                </TouchableOpacity>
+                {/* Dummy Loader */}
+                {isLoading && (
+                    <View style={styles.loaderContainer}>
+                        <ActivityIndicator size="small" color="#8B5CF6" />
+                        <Text style={styles.verifyingText}>Verifying...</Text>
+                    </View>
+                )}
 
             </View>
+
         </View>
     );
 }
@@ -242,23 +250,15 @@ const styles = StyleSheet.create({
         color: '#8B5CF6',
         fontWeight: '700',
     },
-    verifyButton: {
-        width: '100%',
-        height: 56,
-        backgroundColor: '#8B5CF6',
-        borderRadius: 16,
-        justifyContent: 'center',
+    loaderContainer: {
+        marginTop: 30,
+        flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 40,
-        shadowColor: '#8B5CF6',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.4,
-        shadowRadius: 12,
-        elevation: 10,
+        gap: 10,
     },
-    verifyButtonText: {
-        color: '#FFFFFF',
-        fontWeight: '700',
-        fontSize: 16,
+    verifyingText: {
+        color: '#8B5CF6',
+        fontSize: 14,
+        fontWeight: '600',
     },
 });

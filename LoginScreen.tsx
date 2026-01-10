@@ -70,6 +70,9 @@ export default function LoginScreen({ onNavigate }: LoginScreenProps) {
     const [isFocused, setIsFocused] = useState(false);
     const [mobileNumber, setMobileNumber] = useState('');
 
+    // Validation: 10 digits AND starts with 6, 7, 8, or 9
+    const isValidMobile = /^[6-9][0-9]{9}$/.test(mobileNumber);
+
     // Handler to ensure only numbers are entered
     const handleTextChange = (text: string) => {
         const numericValue = text.replace(/[^0-9]/g, '');
@@ -142,18 +145,18 @@ export default function LoginScreen({ onNavigate }: LoginScreenProps) {
 
                 {/* CTA Button */}
                 <Pressable
+                    disabled={!isValidMobile}
                     onPressIn={() => setIsHovered(true)}
                     onPressOut={() => setIsHovered(false)}
                     onPress={() => {
-                        if (mobileNumber.length === 10) {
+                        if (isValidMobile) {
                             onNavigate('otp', mobileNumber);
-                        } else {
-                            // Ideally show feedback, for now just no-op
                         }
                     }}
                     style={({ pressed }) => [
                         styles.button,
-                        (pressed || isHovered) && styles.buttonPressed
+                        !isValidMobile && styles.buttonDisabled,
+                        (pressed || isHovered) && isValidMobile && styles.buttonPressed
                     ]}
                 >
                     <Text style={styles.buttonText}>Get OTP</Text>
@@ -321,5 +324,11 @@ const styles = StyleSheet.create({
         fontSize: 11,
         color: '#94A3B8',
         fontWeight: '500',
+    },
+    buttonDisabled: {
+        backgroundColor: '#C4B5FD', // Light, washed-out purple
+        opacity: 0.7,
+        shadowOpacity: 0,
+        elevation: 0,
     },
 });
