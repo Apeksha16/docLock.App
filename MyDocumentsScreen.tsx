@@ -169,9 +169,9 @@ export default function MyDocumentsScreen({ onNavigate }: MyDocumentsScreenProps
                 <View style={styles.docItemLeft}>
                     <View style={[styles.docIconContainer, item.type === 'folder' ? styles.folderIconBg : styles.fileIconBg]}>
                         {item.type === 'folder' ? (
-                            <Feather name="folder" size={24} color="#3B82F6" />
+                            <Feather name="folder" size={24} color="#F59E0B" />
                         ) : (
-                            <Feather name="image" size={24} color="#10B981" />
+                            <Feather name="image" size={24} color="#EA580C" />
                         )}
                     </View>
                     <View>
@@ -204,12 +204,12 @@ export default function MyDocumentsScreen({ onNavigate }: MyDocumentsScreenProps
                         ) : (
                             <>
                                 <TouchableOpacity style={styles.optionItem}>
-                                    <Feather name="download" size={16} color="#3B82F6" />
-                                    <Text style={[styles.optionText, { color: '#3B82F6' }]}>Download</Text>
+                                    <Feather name="download" size={16} color="#F97316" />
+                                    <Text style={[styles.optionText, { color: '#F97316' }]}>Download</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity style={styles.optionItem}>
-                                    <Feather name="share-2" size={16} color="#10B981" />
-                                    <Text style={[styles.optionText, { color: '#10B981' }]}>Share</Text>
+                                    <Feather name="share-2" size={16} color="#F59E0B" />
+                                    <Text style={[styles.optionText, { color: '#F59E0B' }]}>Share</Text>
                                 </TouchableOpacity>
                                 <View style={styles.optionDivider} />
                                 <TouchableOpacity style={styles.optionItem} onPress={() => initiateDelete(item)}>
@@ -227,7 +227,19 @@ export default function MyDocumentsScreen({ onNavigate }: MyDocumentsScreenProps
     return (
         <View style={styles.container}>
             <StatusBar barStyle="dark-content" />
+
+            {/* Global Overlay for FAB - Close on outside click */}
+            {isFabMenuOpen && (
+                <TouchableOpacity
+                    style={styles.overlay}
+                    activeOpacity={1}
+                    onPress={() => setIsFabMenuOpen(false)}
+                />
+            )}
+
             <SafeAreaView style={{ flex: 1 }}>
+
+
 
                 <View style={styles.header}>
                     <TouchableOpacity onPress={navigateUp} style={styles.backButton}>
@@ -279,7 +291,7 @@ export default function MyDocumentsScreen({ onNavigate }: MyDocumentsScreenProps
                         {/* Placeholder Icon */}
                         <View style={styles.emptyIconContainer}>
                             <LinearGradient
-                                colors={['#3B82F6', '#6366F1']}
+                                colors={['#FB923C', '#EA580C']}
                                 style={styles.emptyIconGradient}
                             >
                                 <Ionicons name="document-text-outline" size={48} color="white" />
@@ -326,29 +338,33 @@ export default function MyDocumentsScreen({ onNavigate }: MyDocumentsScreenProps
                     {currentDocuments.length > 0 && (
                         <View style={styles.bottomNavWrapper}>
                             {isFabMenuOpen && (
-                                <View style={styles.fabMenuContainer}>
-                                    <TouchableOpacity
-                                        style={styles.fabMenuItemSecondary}
-                                        onPress={() => {
-                                            setIsFabMenuOpen(false);
-                                            setCreateFolderVisible(true);
-                                        }}
-                                    >
-                                        <Feather name="folder" size={20} color="white" />
-                                        <Text style={styles.fabMenuItemText}>Create Folder</Text>
-                                    </TouchableOpacity>
+                                <>
 
-                                    <TouchableOpacity
-                                        style={styles.fabMenuItemPrimary}
-                                        onPress={() => {
-                                            setIsFabMenuOpen(false);
-                                            handleUpload();
-                                        }}
-                                    >
-                                        <Feather name="upload" size={20} color="white" />
-                                        <Text style={styles.fabMenuItemText}>Upload Document</Text>
-                                    </TouchableOpacity>
-                                </View>
+
+                                    <View style={styles.fabMenuContainer}>
+                                        <TouchableOpacity
+                                            style={styles.fabMenuItemSecondary}
+                                            onPress={() => {
+                                                setIsFabMenuOpen(false);
+                                                setCreateFolderVisible(true);
+                                            }}
+                                        >
+                                            <Feather name="folder" size={20} color="white" />
+                                            <Text style={styles.fabMenuItemText}>Create Folder</Text>
+                                        </TouchableOpacity>
+
+                                        <TouchableOpacity
+                                            style={styles.fabMenuItemPrimary}
+                                            onPress={() => {
+                                                setIsFabMenuOpen(false);
+                                                handleUpload();
+                                            }}
+                                        >
+                                            <Feather name="upload" size={20} color="white" />
+                                            <Text style={styles.fabMenuItemText}>Upload Document</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </>
                             )}
 
                             <TouchableOpacity
@@ -356,7 +372,12 @@ export default function MyDocumentsScreen({ onNavigate }: MyDocumentsScreenProps
                                 onPress={() => setIsFabMenuOpen(!isFabMenuOpen)}
                                 activeOpacity={0.8}
                             >
-                                <Ionicons name="add" size={32} color="white" style={isFabMenuOpen && styles.fabIconOpen} />
+                                <Ionicons
+                                    name="add"
+                                    size={32}
+                                    color="white"
+                                    style={{ transform: [{ rotate: isFabMenuOpen ? '45deg' : '0deg' }] }}
+                                />
                             </TouchableOpacity>
                         </View>
                     )}
@@ -388,7 +409,7 @@ export default function MyDocumentsScreen({ onNavigate }: MyDocumentsScreenProps
                             <View style={styles.dragHandle} />
 
                             <View style={styles.folderIconContainer}>
-                                <Feather name="folder" size={24} color="#3B82F6" />
+                                <Feather name="folder" size={24} color="#F59E0B" />
                             </View>
 
                             <Text style={styles.modalTitle}>{renamingId ? 'Rename Folder' : 'New Folder'}</Text>
@@ -419,7 +440,7 @@ export default function MyDocumentsScreen({ onNavigate }: MyDocumentsScreenProps
                                 <TouchableOpacity
                                     style={[
                                         styles.modalCreateButton,
-                                        { backgroundColor: newFolderName.trim() ? '#3B82F6' : '#93C5FD' } // Matched colors
+                                        { backgroundColor: newFolderName.trim() ? '#F97316' : '#FED7AA' } // Matched colors
                                     ]}
                                     onPress={handleCreateFolder}
                                     disabled={!newFolderName.trim()}
@@ -442,8 +463,8 @@ export default function MyDocumentsScreen({ onNavigate }: MyDocumentsScreenProps
                         <View style={styles.bottomSheet}>
                             <View style={styles.dragHandle} />
 
-                            <View style={[styles.folderIconContainer, { backgroundColor: '#EFF6FF' }]}>
-                                <Feather name="upload" size={24} color="#3B82F6" />
+                            <View style={[styles.folderIconContainer, { backgroundColor: '#FFEDD5' }]}>
+                                <Feather name="upload" size={24} color="#F97316" />
                             </View>
 
                             <Text style={styles.modalTitle}>Upload File</Text>
@@ -451,7 +472,7 @@ export default function MyDocumentsScreen({ onNavigate }: MyDocumentsScreenProps
                             <TouchableOpacity style={styles.uploadDropZone} onPress={pickDocument}>
                                 {selectedFile ? (
                                     <View style={{ alignItems: 'center' }}>
-                                        <Feather name="file-text" size={32} color="#3B82F6" />
+                                        <Feather name="file-text" size={32} color="#F97316" />
                                         <Text style={styles.uploadMainText}>{selectedFile.name}</Text>
                                         <Text style={styles.uploadSubText}>{selectedFile.size}</Text>
                                     </View>
@@ -482,7 +503,7 @@ export default function MyDocumentsScreen({ onNavigate }: MyDocumentsScreenProps
                                 <TouchableOpacity
                                     style={[
                                         styles.modalCreateButton,
-                                        { backgroundColor: selectedFile ? '#3B82F6' : '#93C5FD' }
+                                        { backgroundColor: selectedFile ? '#F97316' : '#FED7AA' }
                                     ]}
                                     onPress={confirmUpload}
                                     disabled={!selectedFile}
@@ -505,21 +526,25 @@ export default function MyDocumentsScreen({ onNavigate }: MyDocumentsScreenProps
                         <SafeAreaView style={{ flex: 1 }}>
                             {/* Viewer Header */}
                             <View style={styles.viewerHeader}>
-                                <TouchableOpacity onPress={() => setViewingFile(null)} style={styles.viewerBackBtn}>
-                                    <Feather name="chevron-left" size={28} color="white" />
+                                <TouchableOpacity
+                                    onPress={() => setViewingFile(null)}
+                                    style={styles.viewerBackBtn}
+                                    hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+                                >
+                                    <Feather name="chevron-left" size={32} color="white" />
                                 </TouchableOpacity>
                                 <View style={{ alignItems: 'center' }}>
                                     <Text style={styles.viewerTitle}>{viewingFile?.name}</Text>
                                     <Text style={styles.viewerDate}>{viewingFile?.meta.split('•')[1]?.trim() || 'Jan 10, 2026'}</Text>
                                 </View>
-                                <View style={{ width: 28 }} />
+                                <View style={{ width: 32 }} />
                             </View>
 
                             {/* Viewer Content */}
                             <View style={styles.viewerContent}>
                                 {/* Placeholder for the actual file content */}
                                 <View style={styles.filePreviewPlaceholder}>
-                                    <Feather name="image" size={120} color="#3B82F6" />
+                                    <Feather name="image" size={120} color="#EA580C" />
                                 </View>
                             </View>
 
@@ -601,7 +626,7 @@ export default function MyDocumentsScreen({ onNavigate }: MyDocumentsScreenProps
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F8FAFC',
+        backgroundColor: '#FFF7ED', // Orange 50
     },
     header: {
         flexDirection: 'row',
@@ -670,11 +695,11 @@ const styles = StyleSheet.create({
     breadcrumbActive: {
         fontSize: 12,
         fontWeight: '700',
-        backgroundColor: '#E0F2FE',
+        backgroundColor: '#FFEDD5', // Orange 100
         paddingHorizontal: 8,
         paddingVertical: 2,
         borderRadius: 6,
-        color: '#0284C7',
+        color: '#C2410C', // Orange 700
     },
 
     // Empty State
@@ -695,7 +720,7 @@ const styles = StyleSheet.create({
         borderRadius: 30,
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#3B82F6',
+        shadowColor: '#EA580C',
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.3,
         shadowRadius: 20,
@@ -708,7 +733,7 @@ const styles = StyleSheet.create({
         width: 30,
         height: 30,
         borderRadius: 15,
-        backgroundColor: '#DBEAFE',
+        backgroundColor: '#FFEDD5', // Orange 100
         opacity: 0.5,
     },
     emptyTitle: {
@@ -744,11 +769,11 @@ const styles = StyleSheet.create({
     actionButtonPrimary: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#2563EB',
+        backgroundColor: '#F97316', // Orange 500
         paddingVertical: 14,
         paddingHorizontal: 24,
         borderRadius: 12,
-        shadowColor: '#2563EB',
+        shadowColor: '#F97316',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -793,10 +818,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     folderIconBg: {
-        backgroundColor: '#EFF6FF', // Blue tint
+        backgroundColor: '#FFEDD5', // Orange 100
     },
     fileIconBg: {
-        backgroundColor: '#ECFDF5', // Green tint
+        backgroundColor: '#FEF3C7', // Amber 100
     },
     docName: {
         fontSize: 16,
@@ -863,10 +888,10 @@ const styles = StyleSheet.create({
         width: 56,
         height: 56,
         borderRadius: 20, // Squircle shape
-        backgroundColor: '#2563EB',
+        backgroundColor: '#F97316', // Orange 500
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#2563EB',
+        shadowColor: '#F97316',
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.4,
         shadowRadius: 12,
@@ -874,22 +899,15 @@ const styles = StyleSheet.create({
         zIndex: 200,
     },
     fabButtonOpen: {
-        backgroundColor: '#2563EB',
-        transform: [{ rotate: '45deg' }, { scale: 0.9 }] // Rotate to diamond shape
+        backgroundColor: '#F97316',
+        // No rotation needed for icon swap
     },
     fabIconOpen: {
-        transform: [{ rotate: '-45deg' }] // Keep icon upright if needed, BUT actually the '+' becomes 'x' if we rotate the container 45deg. 
-        // Wait, if I rotate the container 45deg, the + becomes an x. Perfect.
-        // So I DON'T need to change the icon to close. I DO NOT need this style if I want the + to become X.
-        // BUT, if the user provided an "X" icon in the screenshot that is upright within a diamond, then I need to rotate the container 45deg and the icon -45deg and swap the icon.
-        // Looking at the screenshot, the closed is a square with +. The open is a diamond (rotated square) with an upright X. 
-        // Actually, a + rotated 45 degrees IS an X. 
-        // So I will just rotate the container 45 degrees.
+        // No rotation needed
     },
     fabMenuContainer: {
         position: 'absolute',
         bottom: 70, // Above the FAB
-        alignItems: 'center',
         gap: 12,
         zIndex: 199,
         width: 200, // Ensure enough width for buttons
@@ -897,12 +915,12 @@ const styles = StyleSheet.create({
     fabMenuItemPrimary: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#2563EB',
+        backgroundColor: '#F97316',
         paddingVertical: 12,
         paddingHorizontal: 20,
         borderRadius: 24,
         gap: 8,
-        shadowColor: '#2563EB',
+        shadowColor: '#F97316',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -963,7 +981,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#6366F1', // Indigo color from screenshot
+        backgroundColor: '#6366F1', // Indigo color from screenshot (Reverted)
         paddingVertical: 12,
         borderRadius: 24,
         gap: 8,
@@ -1050,7 +1068,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
     },
     modalInputActive: {
-        borderColor: '#3B82F6',
+        borderColor: '#F97316',
         backgroundColor: '#FFFFFF',
     },
 
@@ -1068,7 +1086,7 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     viewerBackBtn: {
-        padding: 4,
+        padding: 12,
     },
     viewerTitle: {
         color: 'white',
@@ -1150,5 +1168,10 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginBottom: 24,
         lineHeight: 20,
+    },
+    overlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'transparent',
+        zIndex: 50,
     },
 });

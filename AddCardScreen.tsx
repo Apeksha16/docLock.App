@@ -79,7 +79,7 @@ export default function AddCardScreen({ onNavigate }: AddCardScreenProps) {
                         <View style={styles.previewContainer}>
                             <View style={styles.cardContainer}>
                                 <LinearGradient
-                                    colors={['#D97706', '#B45309']}
+                                    colors={['#D97706', '#B45309']} // Amber/Bronze
                                     style={styles.cardGradient}
                                     start={{ x: 0, y: 0 }}
                                     end={{ x: 1, y: 1 }}
@@ -101,7 +101,6 @@ export default function AddCardScreen({ onNavigate }: AddCardScreenProps) {
                                         <View>
                                             <Text style={styles.footerLabel}>CARD HOLDER</Text>
                                             <Text style={styles.footerValue}>{holderName || 'YOUR NAME'}</Text>
-                                            <Text style={[styles.footerValue, { fontSize: 10, marginTop: 2 }]}>{holderName || 'YOUR NAME'}</Text>
                                         </View>
                                         <View style={{ flexDirection: 'row', gap: 20 }}>
                                             <View>
@@ -124,14 +123,24 @@ export default function AddCardScreen({ onNavigate }: AddCardScreenProps) {
                                 style={[styles.typeButton, cardType === 'debit' && styles.typeButtonActive]}
                                 onPress={() => setCardType('debit')}
                             >
-                                {cardType === 'debit' && <Feather name="check-circle" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />}
+                                <FontAwesome5
+                                    name="university"
+                                    size={16}
+                                    color={cardType === 'debit' ? "#FFFFFF" : "#64748B"}
+                                    style={{ marginRight: 8 }}
+                                />
                                 <Text style={[styles.typeText, cardType === 'debit' && styles.typeTextActive]}>Debit Card</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={[styles.typeButton, cardType === 'credit' && styles.typeButtonActive]}
                                 onPress={() => setCardType('credit')}
                             >
-                                {cardType === 'credit' && <Feather name="check-circle" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />}
+                                <FontAwesome5
+                                    name="credit-card"
+                                    size={16}
+                                    color={cardType === 'credit' ? "#FFFFFF" : "#64748B"}
+                                    style={{ marginRight: 8 }}
+                                />
                                 <Text style={[styles.typeText, cardType === 'credit' && styles.typeTextActive]}>Credit Card</Text>
                             </TouchableOpacity>
                         </View>
@@ -256,7 +265,7 @@ const styles = StyleSheet.create({
         elevation: 2,
     },
     headerTitle: {
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: '700',
         color: '#1E293B',
     },
@@ -265,14 +274,13 @@ const styles = StyleSheet.create({
         marginTop: 10,
         marginBottom: 20,
         paddingHorizontal: 24,
-        // Ensure this stays top if we used a different layout, but here it's just first item
     },
     cardContainer: {
         width: '100%',
         height: 200,
         borderRadius: 20,
         overflow: 'hidden',
-        shadowColor: '#B45309',
+        shadowColor: '#EA580C', // Orange shadow
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.3,
         shadowRadius: 20,
@@ -290,20 +298,20 @@ const styles = StyleSheet.create({
     },
     previewLabel: {
         color: 'rgba(255,255,255,0.7)',
-        fontSize: 10,
+        fontSize: 8,
         fontWeight: '700',
         marginBottom: 4,
     },
     previewValue: {
         color: '#FFFFFF',
-        fontSize: 14,
+        fontSize: 12,
         fontWeight: '700',
         marginBottom: 2,
         textTransform: 'uppercase',
     },
     previewSubLabel: {
         color: 'rgba(255,255,255,0.6)',
-        fontSize: 10,
+        fontSize: 8,
         fontWeight: '600',
     },
     visaBadge: {
@@ -315,14 +323,14 @@ const styles = StyleSheet.create({
     visaText: {
         color: 'white',
         fontWeight: '700',
-        fontSize: 12,
+        fontSize: 10,
     },
     cardBody: {
         justifyContent: 'center',
     },
     previewNumber: {
         color: '#FFFFFF',
-        fontSize: 24,
+        fontSize: 18,
         fontWeight: '700',
         letterSpacing: 2,
     },
@@ -333,13 +341,13 @@ const styles = StyleSheet.create({
     },
     footerLabel: {
         color: 'rgba(255,255,255,0.6)',
-        fontSize: 8,
+        fontSize: 7,
         fontWeight: '700',
         marginBottom: 2,
     },
     footerValue: {
         color: '#FFFFFF',
-        fontSize: 14,
+        fontSize: 11,
         fontWeight: '600',
         textTransform: 'uppercase',
     },
@@ -353,7 +361,7 @@ const styles = StyleSheet.create({
         paddingBottom: 220,
     },
     inputLabel: {
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: '700',
         color: '#0F172A',
         marginBottom: 10,
@@ -363,7 +371,7 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         paddingVertical: 16,
         paddingHorizontal: 16,
-        fontSize: 14,
+        fontSize: 13,
         color: '#1E293B',
         fontWeight: '500',
         marginBottom: 24,
@@ -390,8 +398,8 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
     },
     typeButtonActive: {
-        backgroundColor: '#10B981', // Emerald green
-        borderColor: '#10B981',
+        backgroundColor: '#F59E0B', // Amber
+        borderColor: '#F59E0B',
     },
     typeText: {
         fontWeight: '600',
@@ -417,7 +425,7 @@ const styles = StyleSheet.create({
     },
     addCardButtonText: {
         color: '#FFFFFF',
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '800',
     },
 
@@ -457,6 +465,6 @@ const styles = StyleSheet.create({
     navTextActive: {
         color: '#FFFFFF',
         fontWeight: '700',
-        fontSize: 14,
+        fontSize: 12,
     },
 });

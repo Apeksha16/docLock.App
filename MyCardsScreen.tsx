@@ -52,7 +52,7 @@ export default function MyCardsScreen({ onNavigate }: MyCardsScreenProps) {
                     /* Empty State */
                     <View style={styles.emptyStateContainer}>
                         <View style={styles.emptyIconContainer}>
-                            <MaterialCommunityIcons name="credit-card-outline" size={40} color="#EC4899" />
+                            <MaterialCommunityIcons name="credit-card-outline" size={40} color="#F97316" />
                         </View>
                         <Text style={styles.emptyTitle}>No Cards Yet</Text>
                         <Text style={styles.emptySubtitle}>Add your first card to get started</Text>
@@ -123,7 +123,7 @@ export default function MyCardsScreen({ onNavigate }: MyCardsScreenProps) {
 
                         {/* Pagination Dots (Mock) */}
                         <View style={styles.pagination}>
-                            <View style={[styles.dot, styles.activeDot, { backgroundColor: '#EC4899' }]} />
+                            <View style={[styles.dot, styles.activeDot, { backgroundColor: '#F97316' }]} />
                             <View style={styles.dot} />
                             <View style={styles.dot} />
                         </View>
@@ -180,7 +180,7 @@ export default function MyCardsScreen({ onNavigate }: MyCardsScreenProps) {
 
                         {/* Pagination Dots (Mock) */}
                         <View style={styles.pagination}>
-                            <View style={[styles.dot, styles.activeDot, { backgroundColor: '#3B82F6' }]} />
+                            <View style={[styles.dot, styles.activeDot, { backgroundColor: '#F97316' }]} />
                             <View style={styles.dot} />
                         </View>
 
@@ -211,7 +211,7 @@ export default function MyCardsScreen({ onNavigate }: MyCardsScreenProps) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F8FAFC', // Light background
+        backgroundColor: '#FFF7ED', // Orange 50
     },
     headerDecoration: {
         position: 'absolute',
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
         width: 300,
         height: 300,
         borderRadius: 150,
-        backgroundColor: '#F3E8FF', // Light purple
+        backgroundColor: '#FFEDD5', // Orange 100
         opacity: 0.8,
     },
     header: {
@@ -261,9 +261,9 @@ const styles = StyleSheet.create({
         height: 44,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#EC4899', // Pink
+        backgroundColor: '#F97316', // Orange 500
         borderRadius: 12,
-        shadowColor: '#EC4899',
+        shadowColor: '#F97316',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
     emptyIconContainer: {
         width: 80,
         height: 80,
-        backgroundColor: '#FDF2F8',
+        backgroundColor: '#FFEDD5', // Orange 100
         borderRadius: 24,
         justifyContent: 'center',
         alignItems: 'center',
@@ -299,12 +299,12 @@ const styles = StyleSheet.create({
     },
     addFirstCardButton: {
         flexDirection: 'row',
-        backgroundColor: '#EC4899',
+        backgroundColor: '#F97316', // Orange 500
         paddingVertical: 16,
         paddingHorizontal: 32,
         borderRadius: 16,
         alignItems: 'center',
-        shadowColor: '#EC4899',
+        shadowColor: '#F97316',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
