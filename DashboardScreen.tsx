@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Svg, Circle, G } from 'react-native-svg';
 
 interface DashboardScreenProps {
-    onNavigate: (screen: 'splash' | 'login' | 'signup' | 'otp' | 'notifications' | 'friends' | 'profile') => void; // Update as needed
+    onNavigate: (screen: 'splash' | 'login' | 'signup' | 'otp' | 'notifications' | 'friends' | 'profile' | 'secure-qr' | 'my-cards' | 'add-card' | 'my-documents') => void; // Update as needed
 }
 
 export default function DashboardScreen({ onNavigate }: DashboardScreenProps) {
@@ -215,7 +215,7 @@ export default function DashboardScreen({ onNavigate }: DashboardScreenProps) {
 
                 {/* Grid Menu */}
                 <View style={styles.gridContainer}>
-                    <TouchableOpacity style={styles.gridItem} onPress={() => setActiveTab('storage')}>
+                    <TouchableOpacity style={styles.gridItem} onPress={() => onNavigate('my-documents')}>
                         <View style={[styles.iconBox, { backgroundColor: '#EEF2FF', borderWidth: activeTab === 'storage' ? 1 : 0, borderColor: '#4F46E5' }]}>
                             <MaterialCommunityIcons name="file-document-outline" size={24} color="#4F46E5" />
                         </View>
@@ -223,7 +223,7 @@ export default function DashboardScreen({ onNavigate }: DashboardScreenProps) {
                         <Text style={styles.gridSubLabel}>3 Files</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.gridItem} onPress={() => setActiveTab('cards')}>
+                    <TouchableOpacity style={styles.gridItem} onPress={() => onNavigate('my-cards')}>
                         <View style={[styles.iconBox, { backgroundColor: '#FDF2F8', borderWidth: activeTab === 'cards' ? 1 : 0, borderColor: '#EC4899' }]}>
                             <MaterialCommunityIcons name="credit-card-outline" size={24} color="#EC4899" />
                         </View>
@@ -231,7 +231,7 @@ export default function DashboardScreen({ onNavigate }: DashboardScreenProps) {
                         <Text style={styles.gridSubLabel}>0 Active</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.gridItem} onPress={() => setActiveTab('qrs')}>
+                    <TouchableOpacity style={styles.gridItem} onPress={() => onNavigate('secure-qr')}>
                         <View style={[styles.iconBox, { backgroundColor: '#FFF7ED', borderWidth: activeTab === 'qrs' ? 1 : 0, borderColor: '#F97316' }]}>
                             <MaterialCommunityIcons name="qrcode" size={24} color="#F97316" />
                         </View>

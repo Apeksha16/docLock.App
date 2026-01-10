@@ -1,8 +1,19 @@
 import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, StatusBar } from 'react-native';
+import { Pressable, StatusBar, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { FontAwesome5, Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, {
+    useSharedValue,
+    useAnimatedStyle,
+    withSpring,
+    withSequence,
+    withTiming,
+    Easing
+} from 'react-native-reanimated';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+import AddFriendScreen from './AddFriendScreen';
 
 interface FriendsScreenProps {
     onNavigate: (screen: 'dashboard' | 'friends' | 'profile') => void;
@@ -10,6 +21,47 @@ interface FriendsScreenProps {
 
 export default function FriendsScreen({ onNavigate }: FriendsScreenProps) {
     // const { width } = useWindowDimensions();
+
+    const scale = useSharedValue(1);
+    const rotation = useSharedValue(0);
+
+    const animatedButtonStyle = useAnimatedStyle(() => {
+        return {
+            transform: [{ scale: scale.value }],
+        };
+    });
+
+    const animatedIconStyle = useAnimatedStyle(() => {
+        return {
+            transform: [{ rotate: `${rotation.value}deg` }],
+        };
+    });
+
+    const [showAddFriend, setShowAddFriend] = React.useState(false);
+
+    const handleAddFriend = () => {
+        // Button Scale Animation
+        scale.value = withSequence(
+            withTiming(0.95, { duration: 100 }),
+            withSpring(1, { damping: 10, stiffness: 100 })
+        );
+
+        // Icon Rotation Animation (Spin 360)
+        rotation.value = withSequence(
+            withTiming(360, { duration: 600, easing: Easing.bezier(0.25, 0.1, 0.25, 1) }),
+            withTiming(0, { duration: 0 }) // Reset instantly for next time
+        );
+
+        // Wait for animation then change view
+        setTimeout(() => {
+            setShowAddFriend(true);
+        }, 300);
+    };
+
+    if (showAddFriend) {
+        return <AddFriendScreen onBack={() => setShowAddFriend(false)} onNavigate={onNavigate} />;
+    }
+
 
     return (
         <View style={styles.container}>
@@ -55,17 +107,22 @@ export default function FriendsScreen({ onNavigate }: FriendsScreenProps) {
                         Connect with trusted friends and family to securely share important documents and cards.
                     </Text>
 
-                    <TouchableOpacity style={styles.addButton}>
+                    <AnimatedPressable
+                        style={[styles.addButton, animatedButtonStyle]}
+                        onPress={handleAddFriend}
+                    >
                         <LinearGradient
-                            colors={['#EC4899', '#DB2777']} // Pink 500 to Pink 600
+                            colors={['#EC4899', '#DB2777']}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 0 }}
                             style={styles.addButtonGradient}
                         >
-                            <Feather name="plus" size={20} color="#FFFFFF" />
+                            <Animated.View style={animatedIconStyle}>
+                                <Feather name="plus" size={20} color="#FFFFFF" />
+                            </Animated.View>
                             <Text style={styles.addButtonText}>Add Your First Friend</Text>
                         </LinearGradient>
-                    </TouchableOpacity>
+                    </AnimatedPressable>
 
                 </View>
 
@@ -117,6 +174,20 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginTop: 40,
         marginBottom: 60,
+    },
+    addFriendHeaderRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 24,
+        marginTop: 10,
+        marginBottom: 20,
+        width: '100%', // Ensure it takes full width
+    },
+    blobFloating: {
+        position: 'absolute',
+        borderRadius: 999,
+        opacity: 0.6,
     },
     headerTitle: {
         fontSize: 24,

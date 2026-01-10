@@ -1,0 +1,1154 @@
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, TextInput, FlatList, Modal, Image, Dimensions } from 'react-native';
+import { Feather, FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+const { width, height } = Dimensions.get('window');
+
+interface MyDocumentsScreenProps {
+    onNavigate: (screen: 'dashboard' | 'friends' | 'profile' | 'my-cards' | 'add-card' | 'my-documents') => void;
+}
+
+interface DocumentItem {
+    id: string;
+    type: 'folder' | 'file';
+    name: string;
+    meta: string; // "0 items" or "713.2 KB • Jan 10, 2026"
+    parentId: string | null;
+}
+
+export default function MyDocumentsScreen({ onNavigate }: MyDocumentsScreenProps) {
+    const [searchQuery, setSearchQuery] = useState('');
+    const [documents, setDocuments] = useState<DocumentItem[]>([]);
+    const [folderStack, setFolderStack] = useState<{ id: string, name: string }[]>([]); // Navigation stack
+    const [isCreateFolderVisible, setCreateFolderVisible] = useState(false);
+    const [newFolderName, setNewFolderName] = useState('');
+    const [activeOptionItemId, setActiveOptionItemId] = useState<string | null>(null);
+    const [renamingId, setRenamingId] = useState<string | null>(null);
+    const [isFabMenuOpen, setIsFabMenuOpen] = useState(false);
+
+    // Upload State
+    const [isUploadVisible, setUploadVisible] = useState(false);
+    const [uploadDocName, setUploadDocName] = useState('');
+    const [selectedFile, setSelectedFile] = useState<{ name: string, size: string } | null>(null);
+
+    // File Viewer State
+    const [viewingFile, setViewingFile] = useState<DocumentItem | null>(null);
+
+    // Delete Confirmation State
+    const [deletingItem, setDeletingItem] = useState<DocumentItem | null>(null);
+
+    const currentFolderId = folderStack.length > 0 ? folderStack[folderStack.length - 1].id : null;
+    const currentDocuments = documents.filter(doc => doc.parentId === currentFolderId);
+
+    const initiateDelete = (item: DocumentItem) => {
+        setDeletingItem(item);
+        setActiveOptionItemId(null);
+    };
+
+    const confirmDelete = () => {
+        if (deletingItem) {
+            setDocuments(documents.filter(doc => doc.id !== deletingItem.id));
+            setDeletingItem(null);
+
+            // If we were viewing this file, close the viewer
+            if (viewingFile?.id === deletingItem.id) {
+                setViewingFile(null);
+            }
+        }
+    };
+
+    // Existing handleCreateFolder...
+    const handleCreateFolder = () => {
+        if (newFolderName.trim()) {
+            if (renamingId) {
+                // Rename logic
+                setDocuments(documents.map(doc =>
+                    doc.id === renamingId ? { ...doc, name: newFolderName } : doc
+                ));
+                setRenamingId(null);
+            } else {
+                // Create logic
+                const newFolder: DocumentItem = {
+                    id: Date.now().toString(),
+                    type: 'folder',
+                    name: newFolderName,
+                    meta: '0 items',
+                    parentId: currentFolderId
+                };
+                setDocuments([newFolder, ...documents]);
+            }
+            setNewFolderName('');
+            setCreateFolderVisible(false);
+        }
+    };
+
+    /* Old handleDelete removed, replaced by initiateDelete and confirmDelete */
+
+    const initiateRename = (item: DocumentItem) => {
+        setNewFolderName(item.name);
+        setRenamingId(item.id);
+        setActiveOptionItemId(null);
+        setCreateFolderVisible(true);
+    };
+
+    const handleUpload = () => {
+        setUploadVisible(true);
+    };
+
+    const confirmUpload = () => {
+        const fileName = uploadDocName.trim() || selectedFile?.name || 'New Document.pdf';
+
+        const newFile: DocumentItem = {
+            id: Date.now().toString(),
+            type: 'file',
+            name: fileName,
+            meta: selectedFile ? `${selectedFile.size} • Jan 10, 2026` : '2.4 MB • Jan 10, 2026', // Mock data
+            parentId: currentFolderId
+        };
+        setDocuments([newFile, ...documents]);
+
+        // Reset
+        setUploadVisible(false);
+        setUploadDocName('');
+        setSelectedFile(null);
+    };
+
+    const pickDocument = () => {
+        // Mock file selection
+        setSelectedFile({ name: 'project_brief.pdf', size: '2.4 MB' });
+    };
+
+    const navigateToFolder = (folder: DocumentItem) => {
+        if (folder.type === 'folder') {
+            setFolderStack([...folderStack, { id: folder.id, name: folder.name }]);
+        }
+    };
+
+    const navigateUp = () => {
+        if (folderStack.length > 0) {
+            const newStack = [...folderStack];
+            newStack.pop();
+            setFolderStack(newStack);
+        } else {
+            onNavigate('dashboard');
+        }
+    };
+
+    // Breadcrumb Navigation
+    const navigateToBreadcrumb = (index: number) => {
+        // index -1 is Home (root)
+        if (index === -1) {
+            setFolderStack([]);
+        } else {
+            // Cut stack to index
+            setFolderStack(folderStack.slice(0, index + 1));
+        }
+    };
+
+    // Close options when clicking elsewhere
+    const closeOptions = () => setActiveOptionItemId(null);
+
+    const renderDocumentItem = ({ item }: { item: DocumentItem }) => (
+        <View style={{ zIndex: activeOptionItemId === item.id ? 10 : 1 }}>
+            {/* Wrapper View for zIndex handling since FlatList items can overlap z-index wise */}
+            <TouchableOpacity
+                style={styles.docItem}
+                onPress={() => {
+                    if (activeOptionItemId) {
+                        closeOptions();
+                    } else if (item.type === 'folder') {
+                        navigateToFolder(item);
+                    } else {
+                        setViewingFile(item);
+                    }
+                }}
+                activeOpacity={item.type === 'folder' ? 0.7 : 1}
+            >
+                <View style={styles.docItemLeft}>
+                    <View style={[styles.docIconContainer, item.type === 'folder' ? styles.folderIconBg : styles.fileIconBg]}>
+                        {item.type === 'folder' ? (
+                            <Feather name="folder" size={24} color="#3B82F6" />
+                        ) : (
+                            <Feather name="image" size={24} color="#10B981" />
+                        )}
+                    </View>
+                    <View>
+                        <Text style={styles.docName}>{item.name}</Text>
+                        <Text style={styles.docMeta}>{item.meta}</Text>
+                    </View>
+                </View>
+                <TouchableOpacity
+                    style={styles.moreButton}
+                    onPress={() => setActiveOptionItemId(activeOptionItemId === item.id ? null : item.id)}
+                >
+                    <Feather name="more-vertical" size={20} color="#94A3B8" />
+                </TouchableOpacity>
+
+                {/* Options Menu */}
+                {activeOptionItemId === item.id && (
+                    <View style={styles.optionsMenu}>
+                        {item.type === 'folder' ? (
+                            <>
+                                <TouchableOpacity style={styles.optionItem} onPress={() => initiateRename(item)}>
+                                    <Feather name="edit-2" size={16} color="#64748B" />
+                                    <Text style={styles.optionText}>Rename</Text>
+                                </TouchableOpacity>
+                                <View style={styles.optionDivider} />
+                                <TouchableOpacity style={styles.optionItem} onPress={() => initiateDelete(item)}>
+                                    <Feather name="trash-2" size={16} color="#EF4444" />
+                                    <Text style={[styles.optionText, { color: '#EF4444' }]}>Delete</Text>
+                                </TouchableOpacity>
+                            </>
+                        ) : (
+                            <>
+                                <TouchableOpacity style={styles.optionItem}>
+                                    <Feather name="download" size={16} color="#3B82F6" />
+                                    <Text style={[styles.optionText, { color: '#3B82F6' }]}>Download</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.optionItem}>
+                                    <Feather name="share-2" size={16} color="#10B981" />
+                                    <Text style={[styles.optionText, { color: '#10B981' }]}>Share</Text>
+                                </TouchableOpacity>
+                                <View style={styles.optionDivider} />
+                                <TouchableOpacity style={styles.optionItem} onPress={() => initiateDelete(item)}>
+                                    <Feather name="trash-2" size={16} color="#EF4444" />
+                                    <Text style={[styles.optionText, { color: '#EF4444' }]}>Delete</Text>
+                                </TouchableOpacity>
+                            </>
+                        )}
+                    </View>
+                )}
+            </TouchableOpacity>
+        </View>
+    );
+
+    return (
+        <View style={styles.container}>
+            <StatusBar barStyle="dark-content" />
+            <SafeAreaView style={{ flex: 1 }}>
+
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={navigateUp} style={styles.backButton}>
+                        <Feather name="arrow-left" size={24} color="#1E293B" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>My Documents</Text>
+                    <View style={{ width: 44 }} />
+                </View>
+
+                {/* Search Bar */}
+                <View style={styles.searchContainer}>
+                    <Feather name="search" size={20} color="#94A3B8" style={styles.searchIcon} />
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder="Search documents..."
+                        placeholderTextColor="#94A3B8"
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                    />
+                </View>
+
+                {/* Breadcrumb / Section Title */}
+                <View style={styles.sectionHeader}>
+                    <View style={styles.breadcrumb}>
+                        <TouchableOpacity onPress={() => navigateToBreadcrumb(-1)}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <Ionicons name="home-outline" size={14} color="#64748B" />
+                                <Text style={styles.breadcrumbText}>HOME</Text>
+                            </View>
+                        </TouchableOpacity>
+
+                        {folderStack.map((folder, index) => (
+                            <React.Fragment key={folder.id}>
+                                <Feather name="chevron-right" size={12} color="#CBD5E1" />
+                                <TouchableOpacity onPress={() => navigateToBreadcrumb(index)}>
+                                    <Text style={index === folderStack.length - 1 ? styles.breadcrumbActive : styles.breadcrumbText}>
+                                        {folder.name}
+                                    </Text>
+                                </TouchableOpacity>
+                            </React.Fragment>
+                        ))}
+                    </View>
+                </View>
+
+
+                {/* Content */}
+                {currentDocuments.length === 0 ? (
+                    <View style={styles.emptyStateContainer}>
+                        {/* Placeholder Icon */}
+                        <View style={styles.emptyIconContainer}>
+                            <LinearGradient
+                                colors={['#3B82F6', '#6366F1']}
+                                style={styles.emptyIconGradient}
+                            >
+                                <Ionicons name="document-text-outline" size={48} color="white" />
+                            </LinearGradient>
+                            <View style={styles.emptyIconReflection} />
+                        </View>
+
+                        <Text style={styles.emptyTitle}>No Documents Found</Text>
+                        <Text style={styles.emptySubtitle}>
+                            Start by uploading your first document or creating a folder to organize your files
+                        </Text>
+
+                        <View style={styles.actionButtonsRow}>
+                            <TouchableOpacity
+                                style={styles.actionButtonSecondary}
+                                onPress={() => setCreateFolderVisible(true)}
+                            >
+                                <Feather name="folder" size={20} color="white" style={{ marginRight: 8 }} />
+                                <Text style={styles.actionButtonText}>Create Folder</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.actionButtonPrimary}
+                                onPress={handleUpload}
+                            >
+                                <Feather name="upload" size={20} color="white" style={{ marginRight: 8 }} />
+                                <Text style={styles.actionButtonText}>Upload Document</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                ) : (
+                    <FlatList
+                        data={currentDocuments}
+                        renderItem={renderDocumentItem}
+                        keyExtractor={item => item.id}
+                        contentContainerStyle={styles.listContent}
+                        showsVerticalScrollIndicator={false}
+                    />
+                )}
+
+                {/* Bottom Navigation Bar */}
+                {/* Reusing the same fixed bottom nav logic but adapting zIndex */}
+                <View style={styles.bottomNavContainer}>
+                    {currentDocuments.length > 0 && (
+                        <View style={styles.bottomNavWrapper}>
+                            {isFabMenuOpen && (
+                                <View style={styles.fabMenuContainer}>
+                                    <TouchableOpacity
+                                        style={styles.fabMenuItemSecondary}
+                                        onPress={() => {
+                                            setIsFabMenuOpen(false);
+                                            setCreateFolderVisible(true);
+                                        }}
+                                    >
+                                        <Feather name="folder" size={20} color="white" />
+                                        <Text style={styles.fabMenuItemText}>Create Folder</Text>
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        style={styles.fabMenuItemPrimary}
+                                        onPress={() => {
+                                            setIsFabMenuOpen(false);
+                                            handleUpload();
+                                        }}
+                                    >
+                                        <Feather name="upload" size={20} color="white" />
+                                        <Text style={styles.fabMenuItemText}>Upload Document</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+
+                            <TouchableOpacity
+                                style={[styles.fabButton, isFabMenuOpen && styles.fabButtonOpen]}
+                                onPress={() => setIsFabMenuOpen(!isFabMenuOpen)}
+                                activeOpacity={0.8}
+                            >
+                                <Ionicons name="add" size={32} color="white" style={isFabMenuOpen && styles.fabIconOpen} />
+                            </TouchableOpacity>
+                        </View>
+                    )}
+
+                    {/* Navigation Pill */}
+                    <View style={styles.pillNav}>
+                        <TouchableOpacity style={styles.navItemActive}>
+                            <Ionicons name="home-outline" size={20} color="#FFFFFF" />
+                            <Text style={styles.navTextActive}>Home</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('friends')}>
+                            <Ionicons name="people-outline" size={22} color="#94A3B8" />
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('profile')}>
+                            <Ionicons name="person-outline" size={22} color="#94A3B8" />
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
+                {/* Create Folder Modal */}
+                <Modal
+                    animationType="fade"
+                    transparent={true}
+                    visible={isCreateFolderVisible}
+                    onRequestClose={() => setCreateFolderVisible(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.bottomSheet}>
+                            <View style={styles.dragHandle} />
+
+                            <View style={styles.folderIconContainer}>
+                                <Feather name="folder" size={24} color="#3B82F6" />
+                            </View>
+
+                            <Text style={styles.modalTitle}>{renamingId ? 'Rename Folder' : 'New Folder'}</Text>
+
+                            <TextInput
+                                style={[
+                                    styles.modalInput,
+                                    newFolderName.length > 0 && styles.modalInputActive
+                                ]}
+                                placeholder="Folder name"
+                                placeholderTextColor="#94A3B8"
+                                value={newFolderName}
+                                onChangeText={setNewFolderName}
+                                autoFocus
+                            />
+
+                            <View style={styles.modalButtons}>
+                                <TouchableOpacity
+                                    style={styles.modalCancelButton}
+                                    onPress={() => {
+                                        setCreateFolderVisible(false);
+                                        setRenamingId(null);
+                                        setNewFolderName('');
+                                    }}
+                                >
+                                    <Text style={styles.modalCancelText}>Cancel</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.modalCreateButton,
+                                        { backgroundColor: newFolderName.trim() ? '#3B82F6' : '#93C5FD' } // Matched colors
+                                    ]}
+                                    onPress={handleCreateFolder}
+                                    disabled={!newFolderName.trim()}
+                                >
+                                    <Text style={styles.modalCreateText}>{renamingId ? 'Save Changes' : 'Create Folder'}</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* Upload Document Modal */}
+                <Modal
+                    animationType="fade"
+                    transparent={true}
+                    visible={isUploadVisible}
+                    onRequestClose={() => setUploadVisible(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.bottomSheet}>
+                            <View style={styles.dragHandle} />
+
+                            <View style={[styles.folderIconContainer, { backgroundColor: '#EFF6FF' }]}>
+                                <Feather name="upload" size={24} color="#3B82F6" />
+                            </View>
+
+                            <Text style={styles.modalTitle}>Upload File</Text>
+
+                            <TouchableOpacity style={styles.uploadDropZone} onPress={pickDocument}>
+                                {selectedFile ? (
+                                    <View style={{ alignItems: 'center' }}>
+                                        <Feather name="file-text" size={32} color="#3B82F6" />
+                                        <Text style={styles.uploadMainText}>{selectedFile.name}</Text>
+                                        <Text style={styles.uploadSubText}>{selectedFile.size}</Text>
+                                    </View>
+                                ) : (
+                                    <View style={{ alignItems: 'center' }}>
+                                        <Feather name="upload-cloud" size={32} color="#3B82F6" style={{ marginBottom: 12 }} />
+                                        <Text style={styles.uploadMainText}>Tap to select file</Text>
+                                        <Text style={styles.uploadSubText}>PDF (Max 5MB), Images (Max 2MB)</Text>
+                                    </View>
+                                )}
+                            </TouchableOpacity>
+
+                            <TextInput
+                                style={styles.modalInput}
+                                placeholder="Document name (optional)"
+                                placeholderTextColor="#94A3B8"
+                                value={uploadDocName}
+                                onChangeText={setUploadDocName}
+                            />
+
+                            <View style={styles.modalButtons}>
+                                <TouchableOpacity
+                                    style={styles.modalCancelButton}
+                                    onPress={() => setUploadVisible(false)}
+                                >
+                                    <Text style={styles.modalCancelText}>Cancel</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.modalCreateButton,
+                                        { backgroundColor: selectedFile ? '#3B82F6' : '#93C5FD' }
+                                    ]}
+                                    onPress={confirmUpload}
+                                    disabled={!selectedFile}
+                                >
+                                    <Text style={styles.modalCreateText}>Upload File</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* File Viewer Modal */}
+                <Modal
+                    animationType="slide"
+                    transparent={false}
+                    visible={!!viewingFile}
+                    onRequestClose={() => setViewingFile(null)}
+                >
+                    <View style={styles.viewerContainer}>
+                        <SafeAreaView style={{ flex: 1 }}>
+                            {/* Viewer Header */}
+                            <View style={styles.viewerHeader}>
+                                <TouchableOpacity onPress={() => setViewingFile(null)} style={styles.viewerBackBtn}>
+                                    <Feather name="chevron-left" size={28} color="white" />
+                                </TouchableOpacity>
+                                <View style={{ alignItems: 'center' }}>
+                                    <Text style={styles.viewerTitle}>{viewingFile?.name}</Text>
+                                    <Text style={styles.viewerDate}>{viewingFile?.meta.split('•')[1]?.trim() || 'Jan 10, 2026'}</Text>
+                                </View>
+                                <View style={{ width: 28 }} />
+                            </View>
+
+                            {/* Viewer Content */}
+                            <View style={styles.viewerContent}>
+                                {/* Placeholder for the actual file content */}
+                                <View style={styles.filePreviewPlaceholder}>
+                                    <Feather name="image" size={120} color="#3B82F6" />
+                                </View>
+                            </View>
+
+                            {/* Viewer Footer actions */}
+                            <View style={styles.viewerFooter}>
+                                <TouchableOpacity style={styles.viewerActionBtn}>
+                                    <View style={styles.viewerActionIcon}>
+                                        <Feather name="share-2" size={20} color="white" />
+                                    </View>
+                                    <Text style={styles.viewerActionText}>SHARE</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity style={styles.viewerActionBtn}>
+                                    <View style={styles.viewerActionIcon}>
+                                        <Feather name="download" size={20} color="white" />
+                                    </View>
+                                    <Text style={styles.viewerActionText}>SAVE</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={styles.viewerActionBtn}
+                                    onPress={() => {
+                                        if (viewingFile) initiateDelete(viewingFile);
+                                    }}
+                                >
+                                    <View style={[styles.viewerActionIcon, { backgroundColor: '#EF4444' }]}>
+                                        <Feather name="trash-2" size={20} color="white" />
+                                    </View>
+                                    <Text style={styles.viewerActionText}>DELETE</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </SafeAreaView>
+                    </View>
+                </Modal>
+
+                {/* Delete Confirmation Modal */}
+                <Modal
+                    animationType="fade"
+                    transparent={true}
+                    visible={!!deletingItem}
+                    onRequestClose={() => setDeletingItem(null)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.bottomSheet}>
+                            <View style={styles.dragHandle} />
+
+                            <View style={[styles.folderIconContainer, { backgroundColor: '#FEE2E2' }]}>
+                                <Feather name="trash-2" size={24} color="#EF4444" />
+                            </View>
+
+                            <Text style={styles.modalTitle}>Delete {deletingItem?.type === 'folder' ? 'Folder' : 'File'}?</Text>
+                            <Text style={styles.deleteConfirmText}>
+                                Are you sure you want to delete "{deletingItem?.name}"? This action cannot be undone.
+                            </Text>
+
+                            <View style={styles.modalButtons}>
+                                <TouchableOpacity
+                                    style={styles.modalCancelButton}
+                                    onPress={() => setDeletingItem(null)}
+                                >
+                                    <Text style={styles.modalCancelText}>Cancel</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.modalCreateButton, { backgroundColor: '#EF4444' }]}
+                                    onPress={confirmDelete}
+                                >
+                                    <Text style={styles.modalCreateText}>Delete</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
+
+            </SafeAreaView>
+        </View>
+    );
+}
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#F8FAFC',
+    },
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 24,
+        paddingVertical: 16,
+    },
+    backButton: {
+        width: 44,
+        height: 44,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        shadowColor: '#E2E8F0',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.5,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    headerTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#1E293B',
+    },
+    searchContainer: {
+        marginHorizontal: 24,
+        marginTop: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        paddingHorizontal: 16,
+        height: 50,
+        shadowColor: '#64748B',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 2,
+    },
+    searchIcon: {
+        marginRight: 12,
+    },
+    searchInput: {
+        flex: 1,
+        fontSize: 15,
+        color: '#1E293B',
+        fontWeight: '500',
+    },
+    sectionHeader: {
+        paddingHorizontal: 24,
+        marginTop: 20,
+    },
+    breadcrumb: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    breadcrumbText: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#64748B',
+        letterSpacing: 0.5,
+    },
+    breadcrumbActive: {
+        fontSize: 12,
+        fontWeight: '700',
+        backgroundColor: '#E0F2FE',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 6,
+        color: '#0284C7',
+    },
+
+    // Empty State
+    emptyStateContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 40,
+        marginTop: -60, // visual correction
+    },
+    emptyIconContainer: {
+        marginBottom: 32,
+        alignItems: 'center',
+    },
+    emptyIconGradient: {
+        width: 100,
+        height: 100,
+        borderRadius: 30,
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#3B82F6',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.3,
+        shadowRadius: 20,
+        elevation: 10,
+    },
+    emptyIconReflection: {
+        position: 'absolute',
+        top: -10,
+        right: -10,
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        backgroundColor: '#DBEAFE',
+        opacity: 0.5,
+    },
+    emptyTitle: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: '#1E293B',
+        marginBottom: 12,
+    },
+    emptySubtitle: {
+        fontSize: 14,
+        color: '#64748B',
+        textAlign: 'center',
+        lineHeight: 22,
+        marginBottom: 32,
+    },
+    actionButtonsRow: {
+        flexDirection: 'row',
+        gap: 16,
+    },
+    actionButtonSecondary: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#475569',
+        paddingVertical: 14,
+        paddingHorizontal: 20,
+        borderRadius: 12,
+        shadowColor: '#475569',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    actionButtonPrimary: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#2563EB',
+        paddingVertical: 14,
+        paddingHorizontal: 24,
+        borderRadius: 12,
+        shadowColor: '#2563EB',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    actionButtonText: {
+        color: 'white',
+        fontWeight: '600',
+        fontSize: 15,
+    },
+
+    // List View
+    listContent: {
+        paddingHorizontal: 24,
+        paddingTop: 20,
+        paddingBottom: 100,
+    },
+    docItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: '#FFFFFF',
+        padding: 16,
+        borderRadius: 16,
+        marginBottom: 12,
+        shadowColor: '#64748B',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 1,
+    },
+    docItemLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 16,
+    },
+    docIconContainer: {
+        width: 48,
+        height: 48,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    folderIconBg: {
+        backgroundColor: '#EFF6FF', // Blue tint
+    },
+    fileIconBg: {
+        backgroundColor: '#ECFDF5', // Green tint
+    },
+    docName: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#1E293B',
+        marginBottom: 4,
+    },
+    docMeta: {
+        fontSize: 12,
+        color: '#94A3B8',
+        fontWeight: '500',
+    },
+    moreButton: {
+        padding: 8,
+    },
+    optionsMenu: {
+        position: 'absolute',
+        top: 40,
+        right: 16,
+        backgroundColor: 'white',
+        borderRadius: 12,
+        shadowColor: '#94A3B8',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 10,
+        elevation: 5,
+        zIndex: 100,
+        minWidth: 140,
+        paddingVertical: 4,
+    },
+    optionItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        gap: 10,
+    },
+    optionText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#475569',
+    },
+    optionDivider: {
+        height: 1,
+        backgroundColor: '#F1F5F9',
+        marginHorizontal: 8,
+    },
+
+    // Bottom Nav
+    bottomNavContainer: {
+        position: 'absolute',
+        bottom: 30,
+        left: 0,
+        right: 0,
+        alignItems: 'center',
+    },
+    bottomNavWrapper: {
+        // Logic for FAB if needed
+        marginBottom: 10, // Adjust position relative to nav
+        alignItems: 'center',
+        zIndex: 200,
+    },
+    fabButton: {
+        width: 56,
+        height: 56,
+        borderRadius: 20, // Squircle shape
+        backgroundColor: '#2563EB',
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#2563EB',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.4,
+        shadowRadius: 12,
+        elevation: 8,
+        zIndex: 200,
+    },
+    fabButtonOpen: {
+        backgroundColor: '#2563EB',
+        transform: [{ rotate: '45deg' }, { scale: 0.9 }] // Rotate to diamond shape
+    },
+    fabIconOpen: {
+        transform: [{ rotate: '-45deg' }] // Keep icon upright if needed, BUT actually the '+' becomes 'x' if we rotate the container 45deg. 
+        // Wait, if I rotate the container 45deg, the + becomes an x. Perfect.
+        // So I DON'T need to change the icon to close. I DO NOT need this style if I want the + to become X.
+        // BUT, if the user provided an "X" icon in the screenshot that is upright within a diamond, then I need to rotate the container 45deg and the icon -45deg and swap the icon.
+        // Looking at the screenshot, the closed is a square with +. The open is a diamond (rotated square) with an upright X. 
+        // Actually, a + rotated 45 degrees IS an X. 
+        // So I will just rotate the container 45 degrees.
+    },
+    fabMenuContainer: {
+        position: 'absolute',
+        bottom: 70, // Above the FAB
+        alignItems: 'center',
+        gap: 12,
+        zIndex: 199,
+        width: 200, // Ensure enough width for buttons
+    },
+    fabMenuItemPrimary: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#2563EB',
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 24,
+        gap: 8,
+        shadowColor: '#2563EB',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 4,
+        width: '100%',
+        justifyContent: 'center',
+    },
+    fabMenuItemSecondary: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#475569', // Dark grey/slate
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 24,
+        gap: 8,
+        shadowColor: '#475569',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 4,
+        width: '100%',
+        justifyContent: 'center',
+    },
+    fabMenuItemText: {
+        color: 'white',
+        fontWeight: '700',
+        fontSize: 14,
+    },
+    bottomNav: {
+        // ... unused standard nav ...
+    },
+    pillNav: {
+        flexDirection: 'row',
+        backgroundColor: '#FFFFFF',
+        paddingVertical: 6,
+        paddingHorizontal: 6,
+        borderRadius: 32,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 16,
+        elevation: 10,
+        gap: 8,
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        width: '90%', // Almost full width but floating
+        maxWidth: 340,
+    },
+    navItem: {
+        flex: 1,
+        height: 48,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 24,
+    },
+    navItemActive: {
+        flex: 1.2, // Slightly wider
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#6366F1', // Indigo color from screenshot
+        paddingVertical: 12,
+        borderRadius: 24,
+        gap: 8,
+    },
+    navTextActive: {
+        color: '#FFFFFF',
+        fontWeight: '600',
+        fontSize: 15,
+    },
+
+    // Modal
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    bottomSheet: {
+        backgroundColor: 'white',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        padding: 24,
+        paddingBottom: 40,
+        alignItems: 'center',
+    },
+    dragHandle: {
+        width: 40,
+        height: 4,
+        backgroundColor: '#E2E8F0',
+        borderRadius: 2,
+        marginBottom: 24,
+    },
+    folderIconContainer: {
+        width: 64,
+        height: 64,
+        borderRadius: 20,
+        backgroundColor: '#EFF6FF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: '800',
+        color: '#1E293B',
+        marginBottom: 24,
+    },
+    modalInput: {
+        width: '100%',
+        backgroundColor: '#F8FAFC',
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        borderRadius: 12,
+        padding: 16,
+        fontSize: 16,
+        color: '#1E293B',
+        marginBottom: 24,
+    },
+    modalButtons: {
+        flexDirection: 'row',
+        gap: 16,
+        width: '100%',
+    },
+    modalCancelButton: {
+        flex: 1,
+        paddingVertical: 16,
+        backgroundColor: '#F1F5F9',
+        borderRadius: 12,
+        alignItems: 'center',
+    },
+    modalCancelText: {
+        color: '#64748B',
+        fontWeight: '700',
+        fontSize: 16,
+    },
+    modalCreateButton: {
+        flex: 1,
+        paddingVertical: 16,
+        borderRadius: 12,
+        alignItems: 'center',
+    },
+    modalCreateText: {
+        color: 'white',
+        fontWeight: '700',
+        fontSize: 16,
+    },
+    modalInputActive: {
+        borderColor: '#3B82F6',
+        backgroundColor: '#FFFFFF',
+    },
+
+    // Viewer
+    viewerContainer: {
+        flex: 1,
+        backgroundColor: '#000000',
+    },
+    viewerHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingTop: 10,
+        marginBottom: 20,
+    },
+    viewerBackBtn: {
+        padding: 4,
+    },
+    viewerTitle: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: '700',
+    },
+    viewerDate: {
+        color: '#94A3B8',
+        fontSize: 12,
+        marginTop: 2,
+    },
+    viewerContent: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    filePreviewPlaceholder: {
+        width: width * 0.8,
+        height: height * 0.5,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    viewerFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-evenly',
+        paddingBottom: 40,
+        paddingTop: 20,
+    },
+    viewerActionBtn: {
+        alignItems: 'center',
+        gap: 8,
+    },
+    viewerActionIcon: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: '#1E293B',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    viewerActionText: {
+        color: 'white',
+        fontSize: 10,
+        fontWeight: '700',
+        letterSpacing: 0.5,
+    },
+
+    // Upload Modal specific
+    uploadDropZone: {
+        width: '100%',
+        borderWidth: 1.5,
+        borderColor: '#E2E8F0',
+        borderStyle: 'dashed',
+        borderRadius: 16,
+        padding: 32,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 24,
+        backgroundColor: '#F8FAFC',
+    },
+    uploadMainText: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#1E293B',
+        marginBottom: 4,
+        marginTop: 8,
+    },
+    uploadSubText: {
+        fontSize: 13,
+        color: '#94A3B8',
+        fontWeight: '500',
+        textAlign: 'center',
+    },
+
+    // Delete Modal Text
+    deleteConfirmText: {
+        fontSize: 14,
+        color: '#64748B',
+        textAlign: 'center',
+        marginBottom: 24,
+        lineHeight: 20,
+    },
+});

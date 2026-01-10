@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
         color: '#64748B',
     },
     leftAction: {
-        backgroundColor: '#2DD4BF', // Teal 400 (Theme match)
+        backgroundColor: '#6366F1', // Indigo 500 (Theme styling)
         justifyContent: 'center',
         alignItems: 'flex-start', // Icon on left
         paddingLeft: 32,
