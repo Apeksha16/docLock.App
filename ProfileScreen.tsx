@@ -3,13 +3,36 @@ import { StyleSheet, Text, View, TouchableOpacity, useWindowDimensions, ScrollVi
 import { FontAwesome5, Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useState } from 'react';
+import SecurityPinModal from './components/SecurityPinModal';
+import LogoutModal from './components/LogoutModal';
+import DeleteAccountModal from './components/DeleteAccountModal';
 
 interface ProfileScreenProps {
-    onNavigate: (screen: 'dashboard' | 'friends' | 'profile' | 'login') => void;
+    onNavigate: (screen: 'dashboard' | 'friends' | 'profile' | 'login' | 'secure-qr' | 'about') => void;
 }
 
 export default function ProfileScreen({ onNavigate }: ProfileScreenProps) {
     const { width } = useWindowDimensions();
+    const [isSecurityModalVisible, setSecurityModalVisible] = useState(false);
+    const [isLogoutVisible, setLogoutVisible] = useState(false);
+    const [isDeleteVisible, setDeleteVisible] = useState(false);
+
+    const handleLogout = () => {
+        setLogoutVisible(false);
+        // Simulate logout delay or logic if needed
+        setTimeout(() => {
+            onNavigate('login');
+        }, 300);
+    };
+
+    const handleDeleteAccount = () => {
+        setDeleteVisible(false);
+        // Simulate delete account api call
+        setTimeout(() => {
+            onNavigate('login');
+        }, 300);
+    };
 
     return (
         <View style={styles.container}>
@@ -100,7 +123,7 @@ export default function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                     {/* Menu Items */}
                     <View style={styles.menuContainer}>
 
-                        <TouchableOpacity style={styles.menuItem}>
+                        <TouchableOpacity style={styles.menuItem} onPress={() => setSecurityModalVisible(true)}>
                             <View style={[styles.menuIconBox, { backgroundColor: '#E0F2FE' }]}>
                                 <Feather name="lock" size={20} color="#0EA5E9" />
                             </View>
@@ -111,7 +134,7 @@ export default function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                             <MaterialIcons name="chevron-right" size={24} color="#CBD5E1" />
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.menuItem}>
+                        <TouchableOpacity style={styles.menuItem} onPress={() => onNavigate('secure-qr')}>
                             <View style={[styles.menuIconBox, { backgroundColor: '#E0F2FE' }]}>
                                 <MaterialIcons name="qr-code" size={20} color="#0EA5E9" />
                             </View>
@@ -122,7 +145,7 @@ export default function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                             <MaterialIcons name="chevron-right" size={24} color="#CBD5E1" />
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.menuItem}>
+                        <TouchableOpacity style={styles.menuItem} onPress={() => onNavigate('about')}>
                             <View style={[styles.menuIconBox, { backgroundColor: '#FFEDD5' }]}>
                                 <Feather name="info" size={20} color="#F97316" />
                             </View>
@@ -133,7 +156,7 @@ export default function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                             <MaterialIcons name="chevron-right" size={24} color="#CBD5E1" />
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.menuItem} onPress={() => onNavigate('login')}>
+                        <TouchableOpacity style={styles.menuItem} onPress={() => setLogoutVisible(true)}>
                             <View style={[styles.menuIconBox, { backgroundColor: '#EDE9FE' }]}>
                                 <Feather name="log-out" size={20} color="#8B5CF6" />
                             </View>
@@ -144,7 +167,7 @@ export default function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                             <MaterialIcons name="chevron-right" size={24} color="#CBD5E1" />
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.menuItem}>
+                        <TouchableOpacity style={styles.menuItem} onPress={() => setDeleteVisible(true)}>
                             <View style={[styles.menuIconBox, { backgroundColor: '#FEE2E2' }]}>
                                 <Feather name="trash-2" size={20} color="#EF4444" />
                             </View>
@@ -177,6 +200,23 @@ export default function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                     </TouchableOpacity>
                 </View>
             </View>
+
+            <SecurityPinModal
+                visible={isSecurityModalVisible}
+                onClose={() => setSecurityModalVisible(false)}
+            />
+
+            <LogoutModal
+                visible={isLogoutVisible}
+                onClose={() => setLogoutVisible(false)}
+                onLogout={handleLogout}
+            />
+
+            <DeleteAccountModal
+                visible={isDeleteVisible}
+                onClose={() => setDeleteVisible(false)}
+                onDelete={handleDeleteAccount}
+            />
         </View>
     );
 }

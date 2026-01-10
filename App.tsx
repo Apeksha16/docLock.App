@@ -14,6 +14,9 @@ import ProfileScreen from './ProfileScreen';
 
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import AboutScreen from './AboutScreen';
+import SecurityPinModal from './components/SecurityPinModal';
+
 import SecureQRScreen from './SecureQRScreen';
 import MyCardsScreen from './MyCardsScreen';
 import AddCardScreen from './AddCardScreen';
@@ -21,7 +24,7 @@ import MyDocumentsScreen from './MyDocumentsScreen';
 
 export default function App() {
   // Navigation State
-  const [currentScreen, setCurrentScreen] = useState<'splash' | 'login' | 'signup' | 'otp' | 'dashboard' | 'notifications' | 'friends' | 'profile' | 'secure-qr' | 'my-cards' | 'add-card' | 'my-documents'>('splash');
+  const [currentScreen, setCurrentScreen] = useState<'splash' | 'login' | 'signup' | 'otp' | 'dashboard' | 'notifications' | 'friends' | 'profile' | 'secure-qr' | 'my-cards' | 'add-card' | 'my-documents' | 'about'>('splash');
   const [showSplash, setShowSplash] = useState(true);
   const [mobileNumber, setMobileNumber] = useState('');
 
@@ -35,7 +38,7 @@ export default function App() {
     return () => clearTimeout(timer);
   }, []);
 
-  const handleNavigate = (screen: 'splash' | 'login' | 'signup' | 'otp' | 'dashboard' | 'notifications' | 'friends' | 'profile' | 'secure-qr' | 'my-cards' | 'add-card' | 'my-documents', params?: { mobile?: string }) => {
+  const handleNavigate = (screen: 'splash' | 'login' | 'signup' | 'otp' | 'dashboard' | 'notifications' | 'friends' | 'profile' | 'secure-qr' | 'my-cards' | 'add-card' | 'my-documents' | 'about', params?: { mobile?: string }) => {
     if (params?.mobile) {
       setMobileNumber(params.mobile);
     }
@@ -70,6 +73,8 @@ export default function App() {
         return <AddCardScreen onNavigate={(screen) => handleNavigate(screen)} />;
       case 'my-documents':
         return <MyDocumentsScreen onNavigate={(screen) => handleNavigate(screen)} />;
+      case 'about':
+        return <AboutScreen onNavigate={(screen) => handleNavigate(screen)} />;
       default:
         return null; // Should not happen after splash
     }
