@@ -5,58 +5,15 @@ import Animated, { FadeOut, Layout } from 'react-native-reanimated';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { notificationService } from './services/notificationService';
+
 interface NotificationScreenProps {
     onNavigate: (screen: 'dashboard') => void;
+    notifications: any[];
+    userId?: string;
 }
 
-const initialNotifications = [
-    {
-        id: '1',
-        title: 'Security Update',
-        description: 'Your MPIN has been updated successfully.',
-        time: '1d ago',
-        unread: true,
-        type: 'security', // lock icon
-        color: '#FEE2E2', // Light Red/Pink bg
-        iconColor: '#EF4444' // Red icon
-    },
-    {
-        id: '2',
-        title: 'Secure QR Created',
-        description: 'Successfully generated secure QR: Id',
-        time: '1d ago',
-        unread: true,
-        type: 'qr', // qr icon
-        color: '#FFEDD5', // Light Orange bg
-        iconColor: '#F97316' // Orange icon
-    },
-    {
-        id: '3',
-        title: 'Document Received',
-        description: 'You received "Project_Brief.pdf" from John.',
-        time: '2h ago',
-        unread: true,
-        type: 'document',
-        color: '#E0E7FF', // Indigo 100
-        iconColor: '#6366F1',
-        canShare: true,
-        shareText: 'Project_Brief.pdf'
-    },
-    {
-        id: '4',
-        title: 'New Business Card',
-        description: 'Apeksha shared their digital business card.',
-        time: '5h ago',
-        unread: false,
-        type: 'card',
-        color: '#FCE7F3', // Pink 100
-        iconColor: '#EC4899',
-        canShare: true,
-        shareText: 'Apeksha\'s Business Card'
-    }
-];
-
-const NotificationItem = ({ item, onMarkRead, onDelete }: { item: any, onMarkRead: () => void, onDelete: () => void }) => {
+const NotificationItem = ({ item, onToggleRead, onDelete }: { item: any, onToggleRead: () => void, onDelete: () => void }) => {
     const swipeableRef = useRef<Swipeable>(null);
 
     const renderRightActions = () => (
@@ -92,33 +49,35 @@ const NotificationItem = ({ item, onMarkRead, onDelete }: { item: any, onMarkRea
                         // Swipe Left -> Delete
                         onDelete();
                     } else if (direction === 'left') {
-                        // Swipe Right -> Mark Read
-                        onMarkRead();
+                        // Swipe Right -> Toggle Read
+                        onToggleRead();
                         swipeableRef.current?.close();
                     }
                 }}
             >
-                <View style={styles.card}>
-                    <View style={[styles.iconContainer, { backgroundColor: item.color }]}>
+                <View style={[styles.card, item.read && { opacity: 0.7 }]}>
+                    <View style={[styles.iconContainer, { backgroundColor: item.color || '#E0E7FF' }]}>
                         {item.type === 'security' ? (
-                            <Feather name="lock" size={20} color={item.iconColor} />
+                            <Feather name="lock" size={20} color={item.iconColor || '#4F46E5'} />
                         ) : item.type === 'qr' ? (
-                            <MaterialCommunityIcons name="qrcode" size={20} color={item.iconColor} />
+                            <MaterialCommunityIcons name="qrcode" size={20} color={item.iconColor || '#4F46E5'} />
                         ) : item.type === 'document' ? (
-                            <Feather name="file-text" size={20} color={item.iconColor} />
+                            <Feather name="file-text" size={20} color={item.iconColor || '#4F46E5'} />
                         ) : (
-                            <Feather name="credit-card" size={20} color={item.iconColor} />
+                            <Feather name="bell" size={20} color={item.iconColor || '#4F46E5'} />
                         )}
                     </View>
                     <View style={styles.textContainer}>
                         <View style={styles.cardHeader}>
                             <Text style={styles.cardTitle}>{item.title}</Text>
                             <View style={styles.metaContainer}>
-                                <Text style={styles.timeText}>{item.time}</Text>
-                                {item.unread && <View style={styles.unreadDot} />}
+                                <Text style={styles.timeText}>
+                                    {item.timestamp ? new Date(item.timestamp).toLocaleDateString() : 'Now'}
+                                </Text>
+                                {!item.read && <View style={styles.unreadDot} />}
                             </View>
                         </View>
-                        <Text style={styles.cardDescription}>{item.description}</Text>
+                        <Text style={styles.cardDescription}>{item.message || item.description}</Text>
 
                         {/* Share Action Button */}
                         {item.canShare && (
@@ -134,26 +93,41 @@ const NotificationItem = ({ item, onMarkRead, onDelete }: { item: any, onMarkRea
     );
 };
 
-export default function NotificationScreen({ onNavigate }: NotificationScreenProps) {
+export default function NotificationScreen({ onNavigate, notifications = [], userId }: NotificationScreenProps) {
     const { width } = useWindowDimensions();
-    const [notifications, setNotifications] = React.useState(initialNotifications);
     const [showClearConfirm, setShowClearConfirm] = React.useState(false);
 
-    const handleMarkAllRead = () => {
-        setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
+    // Filter out deleted notifications locally if needed, but props should update
+    const displayNotifications = notifications;
+
+    // Helper: Toggle Read Status
+    const handleToggleRead = async (id: string, currentStatus: boolean) => {
+        if (!userId) return;
+        try {
+            await notificationService.toggleReadStatus(userId, id, currentStatus);
+        } catch (error) {
+            console.error("Failed to toggle read status:", error);
+        }
     };
 
-    const confirmClearAll = () => {
-        setNotifications([]);
+    // Helper: Delete
+    const handleDelete = async (id: string) => {
+        if (!userId) return;
+        try {
+            await notificationService.deleteNotification(userId, id);
+        } catch (error) {
+            console.error("Failed to delete notification:", error);
+        }
+    };
+
+    const confirmClearAll = async () => {
         setShowClearConfirm(false);
-    };
-
-    const handleDelete = (id: string) => {
-        setNotifications(prev => prev.filter(n => n.id !== id));
-    };
-
-    const handleMarkRead = (id: string) => {
-        setNotifications(prev => prev.map(n => n.id === id ? { ...n, unread: false } : n));
+        if (!userId) return;
+        // Optional: Implement delete all
+        // For now, delete one by one or add batch delete
+        for (const notif of notifications) {
+            handleDelete(notif.id);
+        }
     };
 
     return (
@@ -187,7 +161,7 @@ export default function NotificationScreen({ onNavigate }: NotificationScreenPro
                         <NotificationItem
                             key={item.id}
                             item={item}
-                            onMarkRead={() => handleMarkRead(item.id)}
+                            onToggleRead={() => handleToggleRead(item.id, item.read)}
                             onDelete={() => handleDelete(item.id)}
                         />
                     ))

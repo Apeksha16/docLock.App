@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "620656800474",
+    "project_id": "doclock-96a20",
+    "storage_bucket": "doclock-96a20.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:620656800474:android:07db6a789c48e917e9ebe3",
+        "android_client_info": {
+          "package_name": "com.techvriksha.doclock"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "620656800474-ci3ctef6417lgl4462aac9cg2povf2r2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD_Sdvwb_j3UVuPGgFDmReX0__kwQK-OKE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "620656800474-ci3ctef6417lgl4462aac9cg2povf2r2.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

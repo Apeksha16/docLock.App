@@ -5,39 +5,66 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Svg, Circle, G } from 'react-native-svg';
 
 interface DashboardScreenProps {
-    onNavigate: (screen: 'splash' | 'login' | 'signup' | 'otp' | 'notifications' | 'friends' | 'profile' | 'secure-qr' | 'my-cards' | 'add-card' | 'my-documents') => void; // Update as needed
+    onNavigate: (screen: 'splash' | 'login' | 'signup' | 'otp' | 'notifications' | 'friends' | 'profile' | 'secure-qr' | 'my-cards' | 'add-card' | 'my-documents') => void;
+    userProfile?: any;
+    notifications?: any[];
+    appConfig?: any;
 }
 
-export default function DashboardScreen({ onNavigate }: DashboardScreenProps) {
+export default function DashboardScreen({ onNavigate, userProfile, notifications = [], appConfig }: DashboardScreenProps) {
     const { width } = useWindowDimensions();
     const isTablet = width > 768;
+
+    // --- Storage Stats ---
+    const totalStorageBytes = appConfig?.maxStorageLimit || 209715200; // Default 200MB
+    const usedStorageBytes = userProfile?.storageUsed || 0;
+
+    const totalStorageMB = (totalStorageBytes / (1024 * 1024)).toFixed(0);
+    const usedStorageMB = (usedStorageBytes / (1024 * 1024)).toFixed(2);
+    const storagePercent = Math.min((usedStorageBytes / totalStorageBytes) * 100, 100).toFixed(0);
+
+    // --- Card Stats ---
+    const maxCards = appConfig?.maxCreditCardsLimit || 5;
+    // In a real app, userProfile might have a cardsCount field too, 
+    // or we might calculate it from a cards collection subscribe (not done yet).
+    // For now mocking 'cardsCount' from profile or 0.
+    const usedCards = userProfile?.cardsCount || 0;
+    const cardsPercent = Math.min((usedCards / maxCards) * 100, 100).toFixed(0);
+
+    // --- QR Stats ---
+    const maxQrs = 5; // Config didn't show maxQrs limit explicitly in screenshot? 
+    // Actually screenshot shows 'qrs' map in app_config structure but expanded 'global'.
+    // Assuming 5 for now or check config if it exists.
+    const usedQrs = userProfile?.qrsCount || 0;
+    const qrsPercent = Math.min((usedQrs / maxQrs) * 100, 100).toFixed(0);
+
 
     const [activeTab, setActiveTab] = React.useState<'storage' | 'cards' | 'qrs'>('storage');
 
     const tabData = {
         storage: {
             label: 'STORAGE',
-            percent: 1, // 1%
-            value: '1.01 MB / 200 MB',
-            used: '1%',
+            percent: Number(storagePercent),
+            value: `${usedStorageMB} MB / ${totalStorageMB} MB`,
+            used: `${storagePercent}%`,
             color: '#4F46E5', // Indigo
             subLabel: 'STORAGE DETAILS',
             chartLabel: 'STORAGE'
         },
         cards: {
             label: 'CARDS',
-            percent: 0,
-            value: '0 / 5',
-            used: '0%',
+            percent: Number(cardsPercent),
+            value: `${usedCards} / ${maxCards}`,
+            used: `${cardsPercent}%`,
             color: '#EC4899', // Pink
             subLabel: 'CARDS DETAILS',
             chartLabel: 'CARDS'
         },
         qrs: {
             label: 'QRS',
-            percent: 20, // 20%
-            value: '1 / 5',
-            used: '20%',
+            percent: Number(qrsPercent),
+            value: `${usedQrs} / ${maxQrs}`,
+            used: `${qrsPercent}%`,
             color: '#F97316', // Orange
             subLabel: 'QRS DETAILS',
             chartLabel: 'QRS'
@@ -80,14 +107,14 @@ export default function DashboardScreen({ onNavigate }: DashboardScreenProps) {
                 <View style={styles.header}>
                     <View>
                         <Text style={styles.welcomeLabel}>WELCOME BACK,</Text>
-                        <Text style={styles.username}>APEKSHA</Text>
+                        <Text style={styles.username}>{userProfile?.fullName?.toUpperCase() || 'USER'}</Text>
                     </View>
                     <TouchableOpacity
                         style={styles.notificationButton}
                         onPress={() => onNavigate('notifications')}
                     >
                         <Ionicons name="notifications-outline" size={24} color="#FFFFFF" />
-                        <View style={styles.badge} />
+                        {notifications.some(n => !n.read) && <View style={styles.badge} />}
                     </TouchableOpacity>
                 </View>
 

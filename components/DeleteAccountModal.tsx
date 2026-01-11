@@ -1,5 +1,4 @@
-import React from 'react';
-import { StyleSheet, Text, View, Modal, TouchableOpacity, Dimensions } from 'react-native';
+import { StyleSheet, Text, View, Modal, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 
@@ -7,19 +6,20 @@ interface DeleteAccountModalProps {
     visible: boolean;
     onClose: () => void;
     onDelete: () => void;
+    isLoading?: boolean;
 }
 
 const { width } = Dimensions.get('window');
 
-export default function DeleteAccountModal({ visible, onClose, onDelete }: DeleteAccountModalProps) {
+export default function DeleteAccountModal({ visible, onClose, onDelete, isLoading = false }: DeleteAccountModalProps) {
     return (
         <Modal
             animationType="slide"
             transparent={true}
             visible={visible}
-            onRequestClose={onClose}
+            onRequestClose={isLoading ? () => { } : onClose}
         >
-            <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
+            <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={isLoading ? undefined : onClose}>
                 {/* Blur Background */}
                 <BlurView intensity={20} style={StyleSheet.absoluteFill} tint="dark" />
 
@@ -46,12 +46,26 @@ export default function DeleteAccountModal({ visible, onClose, onDelete }: Delet
 
                     {/* Buttons */}
                     <View style={styles.buttonContainer}>
-                        <TouchableOpacity style={styles.deleteButton} onPress={onDelete}>
-                            <Text style={styles.deleteButtonText}>Yes, Delete Everything</Text>
+                        <TouchableOpacity
+                            style={[styles.deleteButton, isLoading && styles.deleteButtonDisabled]}
+                            onPress={onDelete}
+                            disabled={isLoading}
+                        >
+                            {isLoading ? (
+                                <ActivityIndicator color="#FFFFFF" />
+                            ) : (
+                                <Text style={styles.deleteButtonText}>Yes, Delete Everything</Text>
+                            )}
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-                            <Text style={styles.cancelButtonText}>Wait, I changed my mind</Text>
+                        <TouchableOpacity
+                            style={styles.cancelButton}
+                            onPress={onClose}
+                            disabled={isLoading}
+                        >
+                            <Text style={[styles.cancelButtonText, isLoading && { opacity: 0.5 }]}>
+                                Wait, I changed my mind
+                            </Text>
                         </TouchableOpacity>
                     </View>
                 </TouchableOpacity>
@@ -158,5 +172,8 @@ const styles = StyleSheet.create({
         color: '#0F172A',
         fontSize: 16,
         fontWeight: '700',
+    },
+    deleteButtonDisabled: {
+        opacity: 0.7,
     },
 });

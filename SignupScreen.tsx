@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     StyleSheet,
     Text,
@@ -7,36 +7,107 @@ import {
     TouchableOpacity,
     useWindowDimensions,
     Image,
-    Pressable
+    Pressable,
+    Alert
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
+import * as Device from 'expo-device';
+import { authService } from './services/authService';
+import { firestoreService } from './services/firestoreService';
+import { app } from './firebaseConfig';
 
 // Props for navigation callback
 interface SignupScreenProps {
-    onNavigate: (screen: 'login') => void;
+    onNavigate: (screen: 'login' | 'otp', mobile?: string, verificationId?: string, fullName?: string) => void;
+    mobileNumber?: string;
 }
 
-export default function SignupScreen({ onNavigate }: SignupScreenProps) {
+export default function SignupScreen({ onNavigate, mobileNumber: prefilledMobile }: SignupScreenProps) {
     const { width } = useWindowDimensions();
     const isTablet = width > 768;
-    // Mobile: Full width, Tablet: Restricted width
     const cardWidth = isTablet ? 450 : width;
 
     const [isHovered, setIsHovered] = useState(false);
     const [isNameFocused, setIsNameFocused] = useState(false);
     const [isMobileFocused, setIsMobileFocused] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
     const [fullName, setFullName] = useState('');
     const [mobileNumber, setMobileNumber] = useState('');
+
+    useEffect(() => {
+        if (prefilledMobile) {
+            setMobileNumber(prefilledMobile);
+        }
+    }, [prefilledMobile]);
 
     // Validation
     const isValidMobile = /^[6-9][0-9]{9}$/.test(mobileNumber);
     const isValidName = fullName.trim().length > 0 && /^[a-zA-Z\s]*$/.test(fullName);
     const isValid = isValidMobile && isValidName;
 
+    const recaptchaVerifier = useRef(null);
+
+    const handleSendOtp = async () => {
+        if (!isValid) return;
+
+        setIsLoading(true);
+        try {
+            // 1. Check if user ALREADY exists
+            let userExists = false;
+            try {
+                userExists = await firestoreService.checkUserExistsByMobile(mobileNumber);
+            } catch (error: any) {
+                if (error.message.includes("Missing or insufficient permissions") || error.code === 'permission-denied') {
+                    Alert.alert(
+                        "Setup Required",
+                        "Firestore Security Rules are blocking this request. \n\nPlease go to Firebase Console > Firestore > Rules and allow 'read' access to the 'users' collection."
+                    );
+                    setIsLoading(false);
+                    return;
+                }
+                throw error;
+            }
+
+            if (userExists) {
+                // User exists -> Redirect to Login
+                setIsLoading(false);
+                Alert.alert(
+                    "User Exists",
+                    "An account with this mobile number already exists. Please sign in.",
+                    [
+                        {
+                            text: "Go to Login",
+                            onPress: () => onNavigate('login', mobileNumber)
+                        },
+                        {
+                            text: "Cancel",
+                            style: "cancel"
+                        }
+                    ]
+                );
+                return;
+            }
+
+            // 2. User New -> Proceed to Signup OTP
+            const phoneNumber = `+91${mobileNumber}`;
+
+            // Re-use the same "Smart Verifier" logic from Login
+            const verifier = (Device.isDevice && recaptchaVerifier.current) ? recaptchaVerifier.current : undefined;
+            const verificationId = await authService.sendOtp(phoneNumber, verifier);
+
+            onNavigate('otp', mobileNumber, verificationId, fullName);
+        } catch (error: any) {
+            console.error(error);
+            Alert.alert("Signup Failed", error.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const handleNameChange = (text: string) => {
-        // Only allow alphabets and spaces
         if (/^[a-zA-Z\s]*$/.test(text)) {
             setFullName(text);
         }
@@ -54,12 +125,19 @@ export default function SignupScreen({ onNavigate }: SignupScreenProps) {
             styles.container,
             { justifyContent: isTablet ? 'center' : 'flex-end' }
         ]}>
+            <FirebaseRecaptchaVerifierModal
+                ref={recaptchaVerifier}
+                firebaseConfig={app.options}
+                attemptInvisibleVerification={false} // Visible to help debug if needed
+            />
+
             {/* Background Gradient */}
             <LinearGradient
                 colors={['#1e1b4b', '#312e81', '#1e1b4b']}
                 style={styles.background}
             />
 
+            {/* ... Rest of UI ... */}
             {/* Floating Circles */}
             <View style={[styles.circle, { top: -100, left: -50, width: 300, height: 300 }]} />
             <View style={[styles.circle, { bottom: -50, right: -100, width: 250, height: 250 }]} />
@@ -104,6 +182,7 @@ export default function SignupScreen({ onNavigate }: SignupScreenProps) {
                         onChangeText={handleNameChange}
                         onFocus={() => setIsNameFocused(true)}
                         onBlur={() => setIsNameFocused(false)}
+                        editable={!isLoading}
                     />
                 </View>
 
@@ -123,27 +202,23 @@ export default function SignupScreen({ onNavigate }: SignupScreenProps) {
                         maxLength={10}
                         onFocus={() => setIsMobileFocused(true)}
                         onBlur={() => setIsMobileFocused(false)}
+                        editable={!isLoading}
                     />
                 </View>
 
                 {/* CTA Button */}
                 <Pressable
-                    disabled={!isValid}
+                    disabled={!isValid || isLoading}
                     onPressIn={() => setIsHovered(true)}
                     onPressOut={() => setIsHovered(false)}
-                    // Assuming similar navigation logic as Login
-                    // onPress={() => onNavigate('otp', mobileNumber)} 
-                    // But interface says 'login' only? The user likely wants to go to OTP after signup too, 
-                    // but the props definition only has 'login'. I'll enable the visual but keep existing (no-op or whatever logic exists)
-                    // Wait, the existing code didn't even have onPress logic. 
-                    // I will leave onPress empty but respect the disable state.
+                    onPress={handleSendOtp}
                     style={({ pressed }) => [
                         styles.button,
-                        !isValid && styles.buttonDisabled,
-                        (pressed || isHovered) && isValid && styles.buttonPressed
+                        (!isValid || isLoading) && styles.buttonDisabled,
+                        (pressed || isHovered) && isValid && !isLoading && styles.buttonPressed
                     ]}
                 >
-                    <Text style={styles.buttonText}>Get OTP</Text>
+                    <Text style={styles.buttonText}>{isLoading ? 'Sending...' : 'Get OTP'}</Text>
                 </Pressable>
 
                 {/* Footer Navigation */}

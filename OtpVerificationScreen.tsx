@@ -11,16 +11,20 @@ import {
     Platform,
     ActivityIndicator
 } from 'react-native';
+import { authService } from './services/authService';
+import { firestoreService } from './services/firestoreService';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
 // Props for navigation callback
 interface OtpVerificationScreenProps {
     mobileNumber: string;
+    verificationId: string;
+    fullName?: string;
     onNavigate: (screen: 'dashboard') => void;
 }
 
-export default function OtpVerificationScreen({ mobileNumber, onNavigate }: OtpVerificationScreenProps) {
+export default function OtpVerificationScreen({ mobileNumber, verificationId, fullName, onNavigate }: OtpVerificationScreenProps) {
     // ... existing hooks ...
     const { width } = useWindowDimensions();
     const isTablet = width > 768;
@@ -42,6 +46,37 @@ export default function OtpVerificationScreen({ mobileNumber, onNavigate }: OtpV
         return () => clearInterval(interval);
     }, []);
 
+    const handleVerifyOtp = async (code: string) => {
+        setIsLoading(true);
+        try {
+            await authService.verifyOtp(verificationId, code);
+
+            // If this was a signup (fullName provided), create the user profile
+            if (fullName) {
+                const user = authService.getCurrentUser();
+                if (user) {
+                    await firestoreService.saveUserProfile(user.uid, {
+                        fullName: fullName,
+                        mobile: `+91${mobileNumber}`,
+                        role: 'user',
+                        documentsCount: 0,
+                        storageUsed: 0,
+                        mpin: null,
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString()
+                    });
+                }
+            }
+
+            onNavigate('dashboard');
+        } catch (error) {
+            console.error(error);
+            alert('Invalid OTP. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     // OTP Input Handler
     const handleOtpChange = (text: string, index: number) => {
         const newOtp = [...otp];
@@ -56,11 +91,7 @@ export default function OtpVerificationScreen({ mobileNumber, onNavigate }: OtpV
         // Auto-submit if all fields are filled
         if (text && newOtp.every(digit => digit !== '')) {
             Keyboard.dismiss();
-            setIsLoading(true);
-            setTimeout(() => {
-                setIsLoading(false);
-                onNavigate('dashboard');
-            }, 2000); // 2 seconds delay for dummy loader
+            handleVerifyOtp(newOtp.join(''));
         }
     };
 
@@ -68,14 +99,6 @@ export default function OtpVerificationScreen({ mobileNumber, onNavigate }: OtpV
         if (e.nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
             inputs.current[index - 1]?.focus();
         }
-    };
-
-    const handleVerify = () => {
-        setIsLoading(true);
-        setTimeout(() => {
-            setIsLoading(false);
-            onNavigate('dashboard');
-        }, 1500);
     };
 
     return (

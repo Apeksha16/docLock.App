@@ -17,9 +17,10 @@ import AddFriendScreen from './AddFriendScreen';
 
 interface FriendsScreenProps {
     onNavigate: (screen: 'dashboard' | 'friends' | 'profile') => void;
+    userId?: string;
 }
 
-export default function FriendsScreen({ onNavigate }: FriendsScreenProps) {
+export default function FriendsScreen({ onNavigate, userId }: FriendsScreenProps) {
     // const { width } = useWindowDimensions();
 
     const scale = useSharedValue(1);
@@ -59,7 +60,7 @@ export default function FriendsScreen({ onNavigate }: FriendsScreenProps) {
     };
 
     if (showAddFriend) {
-        return <AddFriendScreen onBack={() => setShowAddFriend(false)} onNavigate={onNavigate} />;
+        return <AddFriendScreen onBack={() => setShowAddFriend(false)} onNavigate={onNavigate} userId={userId} />;
     }
 
 

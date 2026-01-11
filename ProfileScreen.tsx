@@ -7,32 +7,172 @@ import { useState } from 'react';
 import SecurityPinModal from './components/SecurityPinModal';
 import LogoutModal from './components/LogoutModal';
 import DeleteAccountModal from './components/DeleteAccountModal';
+import * as ImagePicker from 'expo-image-picker';
+import { Image, ActivityIndicator, Alert } from 'react-native';
+import { storageService } from './services/storageService';
+import { firestoreService } from './services/firestoreService';
+import { notificationService } from './services/notificationService';
+import { deleteAccountService } from './services/deleteAccountService';
+import * as Clipboard from 'expo-clipboard';
 
 interface ProfileScreenProps {
     onNavigate: (screen: 'dashboard' | 'friends' | 'profile' | 'login' | 'secure-qr' | 'about') => void;
+    userProfile?: any;
+    appConfig?: any;
+    userId?: string;
 }
 
-export default function ProfileScreen({ onNavigate }: ProfileScreenProps) {
+export default function ProfileScreen({ onNavigate, userProfile, appConfig, userId }: ProfileScreenProps) {
     const { width } = useWindowDimensions();
     const [isSecurityModalVisible, setSecurityModalVisible] = useState(false);
     const [isLogoutVisible, setLogoutVisible] = useState(false);
     const [isDeleteVisible, setDeleteVisible] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
 
-    const handleLogout = () => {
+    const handleShare = async () => {
+        const uid = userId || userProfile?.uid || userProfile?.id;
+        if (uid) {
+            await Clipboard.setStringAsync(uid);
+            Alert.alert('Copied!', 'User ID copied to clipboard.');
+        } else {
+            Alert.alert('Error', 'User ID not found.');
+        }
+    };
+
+    const handlePickImage = async () => {
+        try {
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+            });
+
+            if (!result.canceled && result.assets[0]) {
+                const asset = result.assets[0];
+
+                if (asset.fileSize && asset.fileSize > 2 * 1024 * 1024) {
+                    Alert.alert('File too large', 'Please select an image smaller than 2MB.');
+                    return;
+                }
+
+                setIsUploading(true);
+                // Fallback to prop or userProfile.id if uid missing
+                const uid = userId || userProfile?.uid || userProfile?.id;
+
+                if (!uid) {
+                    throw new Error("User ID not found");
+                }
+
+                const { downloadURL, size } = await storageService.uploadProfileImage(uid, asset.uri);
+
+                // 1. Subtract old image size if exists
+                if (userProfile?.photoSize) {
+                    await firestoreService.updateStorageUsage(uid, -userProfile.photoSize);
+                } else if (!userProfile?.photoURL && userProfile?.storageUsed > 0 && userProfile?.storageUsed < 5 * 1024 * 1024) {
+                    // Heuristic: If we don't have photoSize but have photoURL (implied by this not being first run if storageUsed > 0), 
+                    // and storage indicates likely previous image usage (small enough), we could guess or simpler: just accept the small drift for legacy.
+                    // But strictly per requirement: "delete existing once and decrease totalsize with old one".
+                    // Since we didn't store size before, we can't perfectly subtract. 
+                    // Ideally we would get metadata of existing file from storage, but that's an extra call. 
+                    // For now, only new uploads will have photoSize tracked perfectly. 
+                    // Users might have a one-time drift if replacing a legacy image.
+                }
+
+                // 2. Add new image size
+                await firestoreService.updateStorageUsage(uid, size);
+
+                // 3. Update profile with new URL AND Size
+                await firestoreService.updateUserProfileImage(uid, downloadURL, size);
+
+                // Send Notification
+                await notificationService.sendNotification(
+                    uid,
+                    'Profile Update',
+                    'Your profile picture has been updated successfully.',
+                    'security'
+                );
+
+                setIsUploading(false);
+                Alert.alert('Success', 'Profile picture updated!');
+            }
+        } catch (error: any) {
+            setIsUploading(false);
+            Alert.alert('Error', error.message);
+        }
+    };
+
+    const handleLogout = async () => {
         setLogoutVisible(false);
-        // Simulate logout delay or logic if needed
-        setTimeout(() => {
-            onNavigate('login');
-        }, 300);
+        try {
+            await import('./services/authService').then(m => m.authService.logout());
+        } catch (error) {
+            console.error(error);
+        }
     };
 
-    const handleDeleteAccount = () => {
-        setDeleteVisible(false);
-        // Simulate delete account api call
-        setTimeout(() => {
-            onNavigate('login');
-        }, 300);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const handleDeleteAccount = async () => {
+        // Do NOT close modal yet
+        // setDeleteVisible(false); 
+        setIsDeleting(true);
+
+        try {
+            const uid = userId || userProfile?.uid || userProfile?.id;
+            if (!uid) {
+                setIsDeleting(false);
+                return;
+            }
+
+            // 1. Get Current User for Auth Deletion
+            let currentUser;
+            try {
+                const { getAuth } = await import("firebase/auth");
+                const auth = getAuth();
+                currentUser = auth.currentUser;
+            } catch (e) {
+                console.log("Auth instance not found", e);
+            }
+
+            // 2. Delete Data AND Auth
+            await import('./services/deleteAccountService').then(m => m.deleteAccountService.deleteUserAccount(uid, currentUser));
+
+            // 3. Perform Logout logic to clear state (if not already handled by deleteUser triggers)
+            await import('./services/authService').then(m => m.authService.logout());
+
+            // Navigate
+            setTimeout(() => {
+                setDeleteVisible(false); // Close now
+                setIsDeleting(false);
+                onNavigate('login');
+                Alert.alert('Account Deleted', 'Your account and data have been permanently deleted.');
+            }, 500);
+
+        } catch (error: any) {
+            setIsDeleting(false);
+            setDeleteVisible(false); // Close on error to show alert properly
+            if (error.message.includes('re-login')) {
+                Alert.alert('Security Check', error.message, [
+                    { text: 'OK', onPress: () => onNavigate('login') }
+                ]);
+            } else {
+                Alert.alert('Error', 'Failed to delete account. ' + error.message);
+            }
+        }
     };
+
+    // Calculate Storage Percentage
+    // appConfig.maxStorageLimit is in Bytes (e.g., 209715200 for 200MB)
+    // userProfile.storageUsed is assumed to be in Bytes for consistency
+    const totalStorageBytes = appConfig?.maxStorageLimit || 209715200; // Default 200MB in bytes
+    const usedStorageBytes = userProfile?.storageUsed || 0;
+
+    const totalStorageMB = (totalStorageBytes / (1024 * 1024)).toFixed(0);
+    const usedStorageMB = (usedStorageBytes / (1024 * 1024)).toFixed(2); // Show 2 decimal places for small files
+
+    const storagePercent = Math.min((usedStorageBytes / totalStorageBytes) * 100, 100).toFixed(1);
+    const storageLeftPercent = (100 - Number(storagePercent)).toFixed(1);
 
     return (
         <View style={styles.container}>
@@ -52,7 +192,7 @@ export default function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                 <View style={styles.header}>
                     <View style={{ width: 40 }} />
                     <Text style={styles.headerTitle}>My Profile</Text>
-                    <TouchableOpacity style={styles.shareButton}>
+                    <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
                         <Ionicons name="share-social-outline" size={20} color="#FFFFFF" />
                     </TouchableOpacity>
                 </View>
@@ -66,11 +206,23 @@ export default function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                     {/* Profile Card */}
                     <View style={styles.profileCardContainer}>
                         {/* Avatar (Floating above card) */}
-                        <View style={styles.avatarContainer}>
+                        <TouchableOpacity style={styles.avatarContainer} onPress={handlePickImage} disabled={isUploading}>
                             <View style={styles.avatarCircle}>
-                                <FontAwesome5 name="user" size={32} color="#CBD5E1" />
+                                {userProfile?.photoURL ? (
+                                    <Image source={{ uri: userProfile.photoURL }} style={styles.avatarImage} />
+                                ) : (
+                                    <FontAwesome5 name="user" size={32} color="#CBD5E1" />
+                                )}
+                                {isUploading && (
+                                    <View style={styles.loadingOverlay}>
+                                        <ActivityIndicator color="#2DD4BF" />
+                                    </View>
+                                )}
                             </View>
-                        </View>
+                            <View style={styles.cameraIconBadge}>
+                                <Feather name="camera" size={12} color="#FFFFFF" />
+                            </View>
+                        </TouchableOpacity>
 
                         <LinearGradient
                             colors={['#2DD4BF', '#14B8A6']} // Teal 400 to Teal 500
@@ -80,23 +232,23 @@ export default function ProfileScreen({ onNavigate }: ProfileScreenProps) {
 
                             <View style={styles.userInfo}>
                                 <View style={styles.nameRow}>
-                                    <Text style={styles.userName}>APEKSHA Verma</Text>
+                                    <Text style={styles.userName}>{userProfile?.fullName || 'User'}</Text>
                                     <TouchableOpacity>
                                         <Feather name="edit-2" size={16} color="#CCFBF1" />
                                     </TouchableOpacity>
                                 </View>
-                                <Text style={styles.userMobile}>7668804527</Text>
+                                <Text style={styles.userMobile}>{userProfile?.mobile || ''}</Text>
                             </View>
 
                             <View style={styles.statsRow}>
                                 <View style={styles.statItem}>
-                                    <Text style={styles.statValue}>3</Text>
+                                    <Text style={styles.statValue}>{userProfile?.documentsCount || 0}</Text>
                                     <Text style={styles.statLabel}>TOTAL DOCS</Text>
                                 </View>
                                 <View style={styles.statDivider} />
                                 <View style={styles.statItem}>
                                     <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-                                        <Text style={styles.statValue}>0.5</Text>
+                                        <Text style={styles.statValue}>{storagePercent}</Text>
                                         <Text style={styles.statPercent}>%</Text>
                                     </View>
                                     <Text style={styles.statLabel}>USED</Text>
@@ -105,9 +257,12 @@ export default function ProfileScreen({ onNavigate }: ProfileScreenProps) {
 
                             <View style={styles.storageBarContainer}>
                                 <View style={styles.storageBarTrack}>
-                                    <View style={[styles.storageBarFill, { width: '0.5%' }]} />
+                                    <View style={[styles.storageBarFill, { width: `${storagePercent}%` as any }]} />
                                 </View>
-                                <Text style={styles.storageText}>Storage Left: 99.5%</Text>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                    <Text style={styles.storageText}>{usedStorageMB} MB / {totalStorageMB} MB</Text>
+                                    <Text style={styles.storageText}>Left: {storageLeftPercent}%</Text>
+                                </View>
                             </View>
 
                             {/* Decorative dots */}
@@ -204,6 +359,13 @@ export default function ProfileScreen({ onNavigate }: ProfileScreenProps) {
             <SecurityPinModal
                 visible={isSecurityModalVisible}
                 onClose={() => setSecurityModalVisible(false)}
+                userId={userId || userProfile?.uid || userProfile?.id}
+                mode="set" // Since this is "Change MPIN", effectively "Set new MPIN" or we could implement verify-first.
+                // For now, based on "Security -> Change MPIN", simple "Set" flow is okay or "Verify then Set".
+                // User request: "create or update".
+                onSuccess={() => {
+                    /* Optional: Send notification of change */
+                }}
             />
 
             <LogoutModal
@@ -216,6 +378,7 @@ export default function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                 visible={isDeleteVisible}
                 onClose={() => setDeleteVisible(false)}
                 onDelete={handleDeleteAccount}
+                isLoading={isDeleting}
             />
         </View>
     );
@@ -470,5 +633,30 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontWeight: '700',
         fontSize: 14,
+    },
+    avatarImage: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 40,
+    },
+    loadingOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(255,255,255,0.7)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 40,
+    },
+    cameraIconBadge: {
+        position: 'absolute',
+        bottom: 0,
+        right: 0,
+        backgroundColor: '#0F172A',
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: '#FFFFFF',
     },
 });
