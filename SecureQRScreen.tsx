@@ -142,6 +142,10 @@ export default function SecureQRScreen({ onNavigate, userId }: SecureQRScreenPro
     };
 
     const handleOpenAddModal = async () => {
+        if (qrCodes.length >= 5) {
+            Alert.alert("Limit Reached", "You can only create up to 5 Secure QRs.");
+            return;
+        }
         setEditingQR(null);
         setLabel('');
         setSelectedDocs([]);
@@ -191,7 +195,7 @@ export default function SecureQRScreen({ onNavigate, userId }: SecureQRScreenPro
                 await firestoreService.updateSecureQR(userId, editingQR.id, {
                     documentIds: selectedDocs,
                     filesCount: selectedDocs.length
-                });
+                }, label); // Pass label for notification
             } else {
                 // Create
                 await firestoreService.addSecureQR(userId, {
@@ -224,7 +228,8 @@ export default function SecureQRScreen({ onNavigate, userId }: SecureQRScreenPro
         if (!userId || !qrToDelete) return;
         try {
             setDeleting(true);
-            await firestoreService.deleteSecureQR(userId, qrToDelete);
+            const qrToDeleteLabel = qrCodes.find(q => q.id === qrToDelete)?.label || 'Unknown QR';
+            await firestoreService.deleteSecureQR(userId, qrToDelete, qrToDeleteLabel);
             setShowDeleteModal(false);
             setQrToDelete(null);
             fetchQRs(); // Refresh list

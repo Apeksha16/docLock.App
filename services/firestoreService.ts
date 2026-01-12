@@ -11,7 +11,9 @@ import {
     deleteDoc,
     addDoc,
     writeBatch,
-    increment
+    increment,
+    orderBy,
+    limit
 } from "firebase/firestore";
 import { db } from "../firebaseConfig";
 import { loggerService } from "./loggerService";
@@ -51,12 +53,32 @@ const addNotificationHelper = async (userId: string, notification: { title: stri
     try {
         console.log("DEBUG: addNotificationHelper called", notification);
         const notifRef = collection(db, "users", userId, "notifications");
+
+        // 1. Add new notification
         await addDoc(notifRef, {
             ...notification,
             read: false,
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
+            timestamp: Date.now()
         });
         console.log("DEBUG: Notification added successfully");
+
+        // 2. Enforce Limit: Keep only latest 20
+        const q = query(notifRef, orderBy('timestamp', 'desc'));
+        const snapshot = await getDocs(q);
+
+        if (snapshot.size > 20) {
+            const batch = writeBatch(db);
+            const docsToDelete = snapshot.docs.slice(20); // Get all docs after the 20th
+
+            docsToDelete.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+
+            await batch.commit();
+            console.log(`DEBUG: Flushed ${docsToDelete.length} old notifications`);
+        }
+
     } catch (error) {
         console.error("Failed to add notification", error);
     }
@@ -764,7 +786,7 @@ export const firestoreService = {
     /**
      * Update Secure QR
      */
-    updateSecureQR: async (userId: string, qrId: string, updates: { documentIds: string[], filesCount: number }) => {
+    updateSecureQR: async (userId: string, qrId: string, updates: { documentIds: string[], filesCount: number }, qrLabel: string) => {
         try {
             loggerService.logRequest('firestoreService.updateSecureQR', { userId, qrId, updates });
 
@@ -776,7 +798,7 @@ export const firestoreService = {
             // Notify
             await addNotificationHelper(userId, {
                 title: 'Secure QR Updated',
-                message: 'A secure QR code and its linked documents have been updated.',
+                message: `Secure QR "${qrLabel}" and its linked documents have been updated.`,
                 type: 'qr'
             });
         } catch (error) {
@@ -788,7 +810,7 @@ export const firestoreService = {
     /**
      * Delete Secure QR
      */
-    deleteSecureQR: async (userId: string, qrId: string) => {
+    deleteSecureQR: async (userId: string, qrId: string, qrLabel: string) => {
         try {
             loggerService.logRequest('firestoreService.deleteSecureQR', { userId, qrId });
 
@@ -810,7 +832,7 @@ export const firestoreService = {
             // Notify
             await addNotificationHelper(userId, {
                 title: 'Secure QR Deleted',
-                message: 'A secure QR code has been permanently removed.',
+                message: `Secure QR "${qrLabel}" has been permanently removed.`,
                 type: 'qr'
             });
 
