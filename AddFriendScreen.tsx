@@ -17,16 +17,17 @@ export default function AddFriendScreen({ onBack, onNavigate, userId }: AddFrien
     const [foundUser, setFoundUser] = useState<any>(null);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [isAdding, setIsAdding] = useState(false);
+    const [error, setError] = useState('');
 
     const handleSearch = async () => {
+        setError(''); // Clear prev error
         if (!searchId.trim()) {
-            Alert.alert('Input Required', 'Please enter a User ID.');
+            setError('Please enter a User ID.');
             return;
         }
 
         if (searchId.trim() === userId) {
-            Alert.alert('Action Not Allowed', 'You cannot be added as a friend in your list.');
-            setSearchId(''); // Clear input
+            setError('You cannot add yourself!');
             return;
         }
 
@@ -41,8 +42,7 @@ export default function AddFriendScreen({ onBack, onNavigate, userId }: AddFrien
                     const alreadyFriend = await firestoreService.checkFriendExists(userId, user.uid || searchId.trim());
                     if (alreadyFriend) {
                         setIsLoading(false);
-                        Alert.alert('Already Added', 'This user is already in your trusted circle.');
-                        setSearchId(''); // Clear input
+                        setError('This user is already in your trusted circle.');
                         return;
                     }
                 }
@@ -52,11 +52,11 @@ export default function AddFriendScreen({ onBack, onNavigate, userId }: AddFrien
                 setShowConfirmModal(true);
             } else {
                 setIsLoading(false);
-                Alert.alert('Not Found', 'No user found with this ID.');
+                setError('No user found with this ID.');
             }
         } catch (error) {
             setIsLoading(false);
-            Alert.alert('Error', 'Failed to search user.');
+            setError('Failed to search user.');
         }
     };
 
@@ -66,13 +66,16 @@ export default function AddFriendScreen({ onBack, onNavigate, userId }: AddFrien
         setIsAdding(true);
         try {
             // Add friend logic
-            // We store minimal details: uid, name, photo
             await firestoreService.addFriend(userId, foundUser.uid || foundUser.id || searchId, foundUser);
 
             setIsAdding(false);
             setShowConfirmModal(false);
-            Alert.alert('Success', `${foundUser.fullName || 'User'} has been added to your circle!`);
-            onBack(); // Go back to friends list
+            // Alert.alert('Success', `${foundUser.fullName || 'User'} has been added to your circle!`);
+            // Go back directly? Or show success toast? User screenshot shows success toast.
+            // For now, simple Alert or navigate back.
+            Alert.alert('Success', 'Friend added successfully!', [
+                { text: 'OK', onPress: onBack }
+            ]);
         } catch (error) {
             setIsAdding(false);
             Alert.alert('Error', 'Failed to add friend.');
@@ -80,8 +83,7 @@ export default function AddFriendScreen({ onBack, onNavigate, userId }: AddFrien
     };
 
     const handleTextChange = (text: string) => {
-        // Firebase UIDs are typically alphanumeric (base64-ish chars)
-        // We strip out any whitespace or special symbol that shouldn't be there
+        setError('');
         const sanitized = text.replace(/[^a-zA-Z0-9]/g, '');
         setSearchId(sanitized);
     };
@@ -104,6 +106,7 @@ export default function AddFriendScreen({ onBack, onNavigate, userId }: AddFrien
 
                 <View style={styles.addFriendContent}>
                     <View style={styles.centerIconContainer}>
+                        {/* ... (Existing blob view) ... */}
                         <View style={[styles.blobFloating, { top: 40, left: -100, width: 18, height: 18, backgroundColor: '#F472B6' }]} />
                         <View style={[styles.blobFloating, { top: 100, left: -80, width: 24, height: 24, backgroundColor: '#FBCFE8' }]} />
                         <View style={[styles.blobFloating, { top: -20, right: -90, width: 20, height: 20, backgroundColor: '#FBCFE8' }]} />
@@ -118,14 +121,14 @@ export default function AddFriendScreen({ onBack, onNavigate, userId }: AddFrien
 
                     <Text style={styles.connectTitle}>Connect with People</Text>
                     <Text style={styles.connectSubtitle}>
-                        Paste a User ID below to find and add them to your secure circle.
+                        Paste a User ID or profile link below to add them to your secure circle.
                     </Text>
 
                     <View style={styles.inputContainer}>
-                        <Text style={styles.inputLabel}>User ID</Text>
-                        <View style={styles.textInputWrapper}>
+                        <Text style={styles.inputLabel}>Profile Link or ID</Text>
+                        <View style={[styles.textInputWrapper, error ? { borderColor: '#EF4444', borderWidth: 1 } : {}]}>
                             <TextInput
-                                placeholder="e.g. 5x8s..."
+                                placeholder="e.g. gV5I3sJf..."
                                 placeholderTextColor="#94A3B8"
                                 style={styles.textInput}
                                 value={searchId}
@@ -134,6 +137,12 @@ export default function AddFriendScreen({ onBack, onNavigate, userId }: AddFrien
                                 maxLength={28}
                             />
                         </View>
+                        {error ? (
+                            <View style={styles.errorContainer}>
+                                <Feather name="alert-circle" size={14} color="#EF4444" />
+                                <Text style={styles.errorText}>{error}</Text>
+                            </View>
+                        ) : null}
                     </View>
 
                     <TouchableOpacity style={styles.submitButton} onPress={handleSearch} disabled={isLoading}>
@@ -146,7 +155,7 @@ export default function AddFriendScreen({ onBack, onNavigate, userId }: AddFrien
                             {isLoading ? (
                                 <ActivityIndicator color="#FFFFFF" />
                             ) : (
-                                <Text style={styles.submitButtonText}>Find User</Text>
+                                <Text style={styles.submitButtonText}>Add Friend</Text>
                             )}
                         </LinearGradient>
                     </TouchableOpacity>
@@ -167,43 +176,60 @@ export default function AddFriendScreen({ onBack, onNavigate, userId }: AddFrien
                         {/* Handle Bar */}
                         <View style={styles.handleBar} />
 
+                        {/* Updated Avatar with Pink Gradient Ring maybe? Keeping simple for now to match screenshot 1 roughly */}
                         <View style={styles.avatarContainer}>
-                            {foundUser?.photoURL ? (
-                                <Image source={{ uri: foundUser.photoURL }} style={styles.modalAvatar} />
-                            ) : (
-                                <View style={[styles.modalAvatar, { backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' }]}>
-                                    <Feather name="user" size={40} color="#94A3B8" />
+                            <LinearGradient
+                                colors={['#F472B6', '#EC4899']}
+                                style={{ padding: 3, borderRadius: 53 }}
+                            >
+                                <View style={{ backgroundColor: 'white', padding: 2, borderRadius: 50 }}>
+                                    {foundUser?.photoURL ? (
+                                        <Image source={{ uri: foundUser.photoURL }} style={styles.modalAvatar} />
+                                    ) : (
+                                        <View style={[styles.modalAvatar, { backgroundColor: '#FCE7F3', justifyContent: 'center', alignItems: 'center' }]}>
+                                            <Feather name="user" size={40} color="#EC4899" />
+                                        </View>
+                                    )}
                                 </View>
-                            )}
+                            </LinearGradient>
                         </View>
 
+                        <Text style={styles.foundThemTitle}>Found Them! ✨</Text>
                         <Text style={styles.modalQuestion}>
-                            Looks like a solid match.{"\n\n"}
-                            Add <Text style={{ fontWeight: '800', color: '#0F172A' }}>{foundUser?.fullName || foundUser?.name || foundUser?.displayName || 'this user'}</Text> to your secure circle?
+                            You're about to add <Text style={{ fontWeight: '800', color: '#EC4899' }}>{foundUser?.fullName || foundUser?.name || 'this user'}</Text> to your secure circle. Ready to start sharing?
                         </Text>
 
-                        <View style={styles.modalButtons}>
+                        {/* Vertical Buttons as per screenshot 1 */}
+                        <View style={styles.modalButtonsColumn}>
                             <TouchableOpacity
-                                style={[styles.modalButton, styles.cancelButton]}
-                                onPress={() => setShowConfirmModal(false)}
-                                disabled={isAdding}
-                            >
-                                <Text style={styles.cancelButtonText}>Cancel</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={[styles.modalButton, styles.confirmButton]}
+                                style={styles.confirmButton}
                                 onPress={handleConfirmAdd}
                                 disabled={isAdding}
                             >
-                                {isAdding ? (
-                                    <ActivityIndicator size="small" color="#FFFFFF" />
-                                ) : (
-                                    <Text style={styles.confirmButtonText}>Confirm</Text>
-                                )}
+                                <LinearGradient
+                                    colors={['#F472B6', '#DB2777']}
+                                    style={styles.gradientButton}
+                                >
+                                    {isAdding ? (
+                                        <ActivityIndicator size="small" color="#FFFFFF" />
+                                    ) : (
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                            <Feather name="plus" size={18} color="white" />
+                                            <Text style={styles.confirmButtonText}>Let's Connect</Text>
+                                        </View>
+                                    )}
+                                </LinearGradient>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.textOnlyButton}
+                                onPress={() => setShowConfirmModal(false)}
+                                disabled={isAdding}
+                            >
+                                <Text style={styles.textOnlyButtonText}>Not yet</Text>
                             </TouchableOpacity>
                         </View>
-                        <View style={{ height: 20 }} />
+
                     </View>
                 </View>
             </Modal>
@@ -486,5 +512,51 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontWeight: '700',
         fontSize: 16,
+    },
+    errorContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 8,
+        padding: 12,
+        backgroundColor: '#FEF2F2',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#FECACA',
+        gap: 8,
+    },
+    errorText: {
+        color: '#EF4444',
+        fontSize: 13,
+        fontWeight: '600',
+        flex: 1,
+    },
+    foundThemTitle: {
+        fontSize: 22,
+        fontWeight: '800',
+        color: '#0F172A',
+        marginBottom: 8,
+        textAlign: 'center',
+    },
+    modalButtonsColumn: {
+        width: '100%',
+        gap: 12,
+    },
+    gradientButton: {
+        width: '100%',
+        paddingVertical: 16,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    textOnlyButton: {
+        width: '100%',
+        paddingVertical: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    textOnlyButtonText: {
+        color: '#64748B',
+        fontSize: 16,
+        fontWeight: '700',
     },
 });

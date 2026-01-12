@@ -277,13 +277,15 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
                 <View style={styles.docItemLeft}>
                     <View style={[styles.docIconContainer, item.type === 'folder' ? styles.folderIconBg : styles.fileIconBg]}>
                         {item.type === 'folder' ? (
-                            <Feather name="folder" size={24} color="#F59E0B" />
+                            <View style={styles.initialIcon}>
+                                <Text style={styles.initialText}>{(item.name[0] || '?').toUpperCase()}</Text>
+                            </View>
                         ) : (
                             <Feather name="image" size={24} color="#EA580C" />
                         )}
                     </View>
-                    <View>
-                        <Text style={styles.docName}>{item.name}</Text>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.docName} numberOfLines={1} ellipsizeMode="middle">{item.name}</Text>
                         <Text style={styles.docMeta}>{item.meta}</Text>
                     </View>
                 </View>
@@ -354,7 +356,10 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
                         placeholder="Search documents..."
                         placeholderTextColor="#94A3B8"
                         value={searchQuery}
-                        onChangeText={setSearchQuery}
+                        onChangeText={(text) => {
+                            const filtered = text.replace(/[^a-zA-Z0-9 _-]/g, '');
+                            setSearchQuery(filtered);
+                        }}
                     />
                 </View>
 
@@ -525,7 +530,7 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
                         <View style={styles.dragHandle} />
 
                         <View style={styles.folderIconContainer}>
-                            <Feather name="folder" size={24} color="#F59E0B" />
+                            <Feather name="folder" size={24} color="#3B82F6" />
                         </View>
 
                         <Text style={styles.modalTitle}>{renamingId ? 'Rename Folder' : 'New Folder'}</Text>
@@ -533,7 +538,7 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
                         <TextInput
                             style={[
                                 styles.modalInput,
-                                newFolderName.length > 0 && styles.modalInputActive
+                                newFolderName.length > 0 && { borderColor: '#3B82F6', backgroundColor: '#FFFFFF' }
                             ]}
                             placeholder="Folder name"
                             placeholderTextColor="#94A3B8"
@@ -554,7 +559,7 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
                             <TouchableOpacity
                                 style={[
                                     styles.modalCreateButton,
-                                    { backgroundColor: newFolderName.trim() ? '#F97316' : '#FED7AA' } // Matched colors
+                                    { backgroundColor: newFolderName.trim() ? '#2563EB' : '#93C5FD' } // Blue 600 : Blue 300
                                 ]}
                                 onPress={handleCreateFolder}
                                 disabled={!newFolderName.trim() || isCreatingFolder}
@@ -1301,5 +1306,18 @@ const styles = StyleSheet.create({
         ...StyleSheet.absoluteFillObject,
         backgroundColor: 'transparent',
         zIndex: 50,
+    },
+    initialIcon: {
+        width: 24,
+        height: 24,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.5)',
+        borderRadius: 4,
+    },
+    initialText: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#B45309', // Darker amber/orange
     },
 });

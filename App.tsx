@@ -40,6 +40,7 @@ export default function App() {
   const [mobileNumber, setMobileNumber] = useState('');
   const [verificationId, setVerificationId] = useState('');
   const [fullName, setFullName] = useState('');
+  const [cardToEdit, setCardToEdit] = useState<any>(null); // For editing cards
 
   // Data State
   const [user, setUser] = useState<User | null>(null);
@@ -106,7 +107,7 @@ export default function App() {
     };
   }, []);
 
-  const handleNavigate = (screen: 'splash' | 'login' | 'signup' | 'otp' | 'dashboard' | 'notifications' | 'friends' | 'profile' | 'secure-qr' | 'my-cards' | 'add-card' | 'my-documents' | 'about', params?: { mobile?: string, verificationId?: string, fullName?: string }) => {
+  const handleNavigate = (screen: 'splash' | 'login' | 'signup' | 'otp' | 'dashboard' | 'notifications' | 'friends' | 'profile' | 'secure-qr' | 'my-cards' | 'add-card' | 'my-documents' | 'about', params?: { mobile?: string, verificationId?: string, fullName?: string, cardData?: any }) => {
     if (params?.mobile) {
       setMobileNumber(params.mobile);
     }
@@ -116,6 +117,18 @@ export default function App() {
     if (params?.fullName) {
       setFullName(params.fullName);
     }
+    // Set or Clear cardToEdit based on presence of cardData
+    if (params?.cardData) {
+      setCardToEdit(params.cardData);
+    } else if (screen === 'add-card' && !params?.cardData) {
+      // Clearing logic: if going to add-card without data, it's a new add.
+      // But if navigating away, we might want to clear it too?
+      // Simpler: clear it if not provided when navigating to add-card.
+      setCardToEdit(null);
+    } else {
+      // For other screens, maybe clear it? Not strictly necessary unless we reuse add-card.
+    }
+
     setCurrentScreen(screen);
   };
 
@@ -159,7 +172,7 @@ export default function App() {
       case 'my-cards':
         return <MyCardsScreen onNavigate={(screen) => handleNavigate(screen)} userId={user?.uid || ''} />;
       case 'add-card':
-        return <AddCardScreen onNavigate={(screen) => handleNavigate(screen)} userId={user?.uid || ''} />;
+        return <AddCardScreen onNavigate={(screen) => handleNavigate(screen)} userId={user?.uid || ''} cardToEdit={cardToEdit} />;
       case 'my-documents':
         return <MyDocumentsScreen onNavigate={(screen) => handleNavigate(screen)} userId={user?.uid} />;
       case 'about':

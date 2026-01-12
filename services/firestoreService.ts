@@ -545,5 +545,95 @@ export const firestoreService = {
             loggerService.logApiError('firestoreService.getCards', error);
             throw error;
         }
+    },
+
+    /**
+     * Delete a card
+     */
+    deleteCard: async (userId: string, cardId: string) => {
+        try {
+            loggerService.logRequest('firestoreService.deleteCard', { userId, cardId });
+            const cardRef = doc(db, "users", userId, "cards", cardId);
+            await deleteDoc(cardRef);
+            loggerService.logResponse('firestoreService.deleteCard', { success: true });
+        } catch (error) {
+            loggerService.logApiError('firestoreService.deleteCard', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Update a card
+     */
+    updateCard: async (userId: string, cardId: string, cardData: any) => {
+        try {
+            loggerService.logRequest('firestoreService.updateCard', { userId, cardId, cardData });
+            const cardRef = doc(db, "users", userId, "cards", cardId);
+            await setDoc(cardRef, {
+                ...cardData,
+                updatedAt: new Date().toISOString()
+            }, { merge: true });
+            loggerService.logResponse('firestoreService.updateCard', { success: true });
+        } catch (error) {
+            loggerService.logApiError('firestoreService.updateCard', error);
+            throw error;
+        }
+    },
+    /**
+     * Get user friends
+     */
+    getFriends: async (userId: string) => {
+        try {
+            loggerService.logRequest('firestoreService.getFriends', { userId });
+            const friendsRef = collection(db, "users", userId, "friends");
+            const snapshot = await getDocs(friendsRef);
+
+            const friends = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+
+            loggerService.logResponse('firestoreService.getFriends', { count: friends.length });
+            return friends;
+        } catch (error) {
+            loggerService.logApiError('firestoreService.getFriends', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Delete a friend
+     */
+    deleteFriend: async (userId: string, friendId: string) => {
+        try {
+            loggerService.logRequest('firestoreService.deleteFriend', { userId, friendId });
+            const friendRef = doc(db, "users", userId, "friends", friendId);
+            await deleteDoc(friendRef);
+            loggerService.logResponse('firestoreService.deleteFriend', { success: true });
+        } catch (error) {
+            loggerService.logApiError('firestoreService.deleteFriend', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Send a request (Document or Card)
+     */
+    sendRequest: async (requesterId: string, targetId: string, type: 'document' | 'card', item: string) => {
+        try {
+            loggerService.logRequest('firestoreService.sendRequest', { requesterId, targetId, type, item });
+
+            // This is a placeholder log since we don't have a requests collection yet.
+            // In a real app, you would add a document to a 'requests' collection.
+            console.log(`[REQUEST SENT] From: ${requesterId}, To: ${targetId}, Type: ${type}, Item: ${item}`);
+
+            // Simulate network delay
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            loggerService.logResponse('firestoreService.sendRequest', { success: true, mock: true });
+        } catch (error) {
+            loggerService.logApiError('firestoreService.sendRequest', error);
+            throw error;
+        }
     }
 };

@@ -1,21 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Dimensions, ActivityIndicator } from 'react-native';
-import { Feather, FontAwesome5 } from '@expo/vector-icons';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Dimensions, ActivityIndicator, Alert } from 'react-native';
+import { Feather, FontAwesome5, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { firestoreService } from './services/firestoreService';
+import * as Clipboard from 'expo-clipboard';
 
 const { width } = Dimensions.get('window');
+const CARD_WIDTH = width * 0.85;
 
 interface MyCardsScreenProps {
-    onNavigate: (screen: 'dashboard' | 'friends' | 'profile' | 'add-card') => void;
+    onNavigate: (screen: 'dashboard' | 'friends' | 'profile' | 'add-card', params?: any) => void;
     userId: string;
 }
 
 export default function MyCardsScreen({ onNavigate, userId }: MyCardsScreenProps) {
     const [cards, setCards] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
 
     useEffect(() => {
         fetchCards();
@@ -26,10 +27,6 @@ export default function MyCardsScreen({ onNavigate, userId }: MyCardsScreenProps
             if (!userId) return;
             const userCards = await firestoreService.getCards(userId);
             setCards(userCards);
-            // Auto-expand the last card if exists (mimicking the "top of stack" look)
-            if (userCards.length > 0) {
-                setExpandedCardId(userCards[userCards.length - 1].id);
-            }
         } catch (error) {
             console.error("Failed to fetch cards", error);
         } finally {
@@ -37,105 +34,197 @@ export default function MyCardsScreen({ onNavigate, userId }: MyCardsScreenProps
         }
     };
 
-    const toggleCard = (id: string) => {
-        setExpandedCardId(expandedCardId === id ? null : id);
+    const handleCopy = async (text: string, label: string) => {
+        await Clipboard.setStringAsync(text);
+        Alert.alert('Copied', `${label} copied to clipboard.`);
     };
 
-    const getCardLogo = (type: string) => {
-        // Simple logic for MVP, can be enhanced based on regex
-        return <Text style={styles.brandText}>VISA</Text>;
+    const handleDelete = (cardId: string) => {
+        Alert.alert(
+            "Delete Card",
+            "Are you sure you want to delete this card?",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            await firestoreService.deleteCard(userId, cardId); // Assuming deleteCard exists or implementing logic
+                            // Refresh list locally
+                            setCards(prev => prev.filter(c => c.id !== cardId));
+                            Alert.alert("Deleted", "Card has been removed.");
+                        } catch (error) {
+                            Alert.alert("Error", "Failed to delete card.");
+                        }
+                    }
+                }
+            ]
+        );
     };
+
+    const renderCardItem = (card: any) => {
+        return (
+            <LinearGradient
+                key={card.id}
+                colors={['#DC362E', '#E85D35']} // Red to Orange gradient
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.cardContainer}
+            >
+                {/* Visual texture/circles */}
+                <View style={styles.cardTexture}>
+                    <View style={[styles.circle, { top: -50, right: -50, width: 200, height: 200, opacity: 0.1 }]} />
+                </View>
+
+                {/* Top Row: Actions & Brand */}
+                <View style={styles.cardHeader}>
+                    <View style={styles.actionsRow}>
+                        <TouchableOpacity style={styles.iconButton} onPress={() => onNavigate('add-card', { cardData: card })}>
+                            <Feather name="edit-2" size={14} color="rgba(255,255,255,0.7)" />
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.iconButton} onPress={() => handleDelete(card.id)}>
+                            <Feather name="trash-2" size={14} color="rgba(255,255,255,0.7)" />
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.iconButton} onPress={() => handleCopy(card.cardNumber, "Card Number")}>
+                            <Feather name="share-2" size={14} color="rgba(255,255,255,0.7)" />
+                        </TouchableOpacity>
+                    </View>
+                    <View style={styles.brandBadge}>
+                        <Text style={styles.brandText}>{card.cardType === 'credit' ? 'VISA' : 'VISA'}</Text>
+                    </View>
+                </View>
+
+                {/* Card Name */}
+                <Text style={styles.cardNameLabel}>{card.cardName || 'CARD NAME'}</Text>
+
+                {/* Number */}
+                <TouchableOpacity onPress={() => handleCopy(card.cardNumber, "Card Number")}>
+                    <Text style={styles.cardNumber}>{card.cardNumberMasked ? card.cardNumberMasked.replace(/\*/g, '•') : '•••• •••• •••• 0000'}</Text>
+                </TouchableOpacity>
+
+                {/* Details Footer */}
+                <View style={styles.cardFooter}>
+                    <View>
+                        <Text style={styles.detailLabel}>CARD HOLDER</Text>
+                        <Text style={styles.detailValue} numberOfLines={1}>{card.holderName || userPlaceholderName}</Text>
+                    </View>
+
+                    <View style={{ flexDirection: 'row', gap: 24 }}>
+                        <View>
+                            <Text style={styles.detailLabel}>EXPIRES</Text>
+                            <Text style={styles.detailValue}>{card.expiry}</Text>
+                        </View>
+                        <View>
+                            <Text style={styles.detailLabel}>CVV</Text>
+                            <Text style={styles.detailValue}>•••</Text>
+                        </View>
+                    </View>
+                </View>
+            </LinearGradient>
+        );
+    };
+
+    const userPlaceholderName = "USER NAME"; // Fallback
+    const debitCards = cards.filter(c => c.cardType === 'debit' || !c.cardType);
+    const creditCards = cards.filter(c => c.cardType === 'credit');
 
     return (
         <View style={styles.container}>
             <StatusBar barStyle="dark-content" />
+
+            {/* Background Decoration (Pink/Purplish top right) */}
+            <View style={styles.bgDecoration} />
+
             <SafeAreaView style={{ flex: 1 }}>
 
                 {/* Header */}
                 <View style={styles.header}>
-                    <View>
-                        <Text style={styles.headerTitleMain}>My Credit</Text>
-                        <Text style={styles.headerTitleSub}>Cards</Text>
+                    <TouchableOpacity onPress={() => onNavigate('dashboard')} style={styles.backButton}>
+                        <Feather name="arrow-left" size={24} color="#1E293B" />
+                    </TouchableOpacity>
+
+                    <View style={styles.headerTitleContainer}>
+                        <Text style={styles.headerTitle}>My Cards</Text>
+                        <Text style={styles.headerSubtitle}>Total {cards.length} cards</Text>
                     </View>
-                    <View style={styles.addCardContainer}>
-                        <TouchableOpacity style={styles.addButton} onPress={() => onNavigate('add-card')}>
-                            <Feather name="plus" size={24} color="#FFF" />
-                        </TouchableOpacity>
-                    </View>
+
+                    <TouchableOpacity style={styles.addButton} onPress={() => onNavigate('add-card')}>
+                        <Feather name="plus" size={24} color="#FFF" />
+                    </TouchableOpacity>
+                </View>
+
+                {/* Tip Banner */}
+                <View style={styles.tipContainer}>
+                    <Feather name="info" size={14} color="#2563EB" />
+                    <Text style={styles.tipText}>Tip: Click any card detail to copy it.</Text>
                 </View>
 
                 {loading ? (
                     <View style={styles.center}>
-                        <ActivityIndicator size="large" color="#000" />
-                    </View>
-                ) : cards.length === 0 ? (
-                    <View style={styles.emptyState}>
-                        <Text style={styles.emptyText}>No cards found.</Text>
-                        <TouchableOpacity style={styles.addFirstButton} onPress={() => onNavigate('add-card')}>
-                            <Text style={styles.addFirstText}>Add New Card</Text>
-                        </TouchableOpacity>
+                        <ActivityIndicator size="large" color="#E11D48" />
                     </View>
                 ) : (
-                    <ScrollView
-                        contentContainerStyle={styles.scrollContent}
-                        showsVerticalScrollIndicator={false}
-                    >
-                        {cards.map((card, index) => {
-                            const isExpanded = expandedCardId === card.id;
+                    <ScrollView style={styles.contentScroll} showsVerticalScrollIndicator={false}>
 
-                            // Visual Stack Logic
-                            // If it's expanded, we might give it full height. 
-                            // If collapsed, small height.
-                            // Negative margin top for all except first to overlap.
+                        {/* Debit Cards Section */}
+                        <View style={styles.sectionHeader}>
+                            <Text style={styles.sectionTitle}>Debit Cards</Text>
+                            <View style={styles.countBadge}>
+                                <Text style={styles.countText}>{debitCards.length} cards</Text>
+                            </View>
+                        </View>
 
-                            return (
-                                <TouchableOpacity
-                                    key={card.id}
-                                    activeOpacity={0.9}
-                                    onPress={() => toggleCard(card.id)}
-                                    style={[
-                                        styles.cardContainer,
-                                        {
-                                            marginTop: index === 0 ? 0 : -50, // Stack overlap
-                                            zIndex: index, // Ensure order
-                                            backgroundColor: isExpanded ? '#1C1C1E' : '#D1FAE5', // Dark for active, Light Green for others (from image)
-                                            // Alternate colors for variety if desired:
-                                            // backgroundColor: isExpanded ? '#1C1C1E' : (index % 2 === 0 ? '#D1FAE5' : '#E0F2FE')
-                                        }
-                                    ]}
-                                >
-                                    {isExpanded ? (
-                                        // EXPANDED STATE (Dark Card)
-                                        <View style={styles.cardContentExpanded}>
-                                            <View style={styles.cardRow}>
-                                                <Text style={styles.cardMaskedExpanded}>**** {card.cardNumberMasked || '0000'}</Text>
-                                                <View style={styles.logoContainerLight}>{getCardLogo(card.cardType)}</View>
-                                            </View>
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.horizontalList}
+                        >
+                            {debitCards.length > 0 ? debitCards.map(renderCardItem) : (
+                                <Text style={styles.noCardsText}>No debit cards added.</Text>
+                            )}
+                        </ScrollView>
 
-                                            <View style={styles.cardFooter}>
-                                                <View>
-                                                    <Text style={styles.labelExpanded}>Expire {card.expiry}</Text>
-                                                    <Text style={styles.holderExpanded}>{card.holderName || 'CARD HOLDER'}</Text>
-                                                </View>
-                                                <TouchableOpacity style={styles.editButton}>
-                                                    <Feather name="edit-2" size={16} color="#FFF" />
-                                                </TouchableOpacity>
-                                            </View>
-                                        </View>
-                                    ) : (
-                                        // COLLAPSED STATE (Light Script)
-                                        <View style={styles.cardContentCollapsed}>
-                                            <Text style={styles.cardMaskedCollapsed}>**** {card.cardNumberMasked || '0000'}</Text>
-                                            <View style={styles.logoContainerDark}>{getCardLogo(card.cardType)}</View>
-                                        </View>
-                                    )}
-                                </TouchableOpacity>
-                            );
-                        })}
-                        {/* Spacer at bottom */}
+                        {/* Credit Cards Section */}
+                        <View style={styles.sectionHeader}>
+                            <Text style={styles.sectionTitle}>Credit Cards</Text>
+                            <View style={styles.countBadge}>
+                                <Text style={styles.countText}>{creditCards.length} cards</Text>
+                            </View>
+                        </View>
+
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.horizontalList}
+                        >
+                            {creditCards.length > 0 ? creditCards.map(renderCardItem) : (
+                                <Text style={styles.noCardsText}>No credit cards added.</Text>
+                            )}
+                        </ScrollView>
+
                         <View style={{ height: 100 }} />
                     </ScrollView>
                 )}
+
+                {/* Bottom Navigation Bar */}
+                {/* Bottom Navigation Bar */}
+                <View style={styles.bottomNavContainer}>
+                    <View style={styles.bottomNav}>
+                        <TouchableOpacity style={styles.navItemActive}>
+                            <Ionicons name="home" size={20} color="#FFFFFF" />
+                            <Text style={styles.navTextActive}>Home</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('friends')}>
+                            <FontAwesome5 name="user-friends" size={20} color="#94A3B8" />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('profile')}>
+                            <FontAwesome5 name="user" size={20} color="#94A3B8" />
+                        </TouchableOpacity>
+                    </View>
+                </View>
 
             </SafeAreaView>
         </View>
@@ -145,7 +234,17 @@ export default function MyCardsScreen({ onNavigate, userId }: MyCardsScreenProps
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FFF7ED', // Restored Orange 50
+        backgroundColor: '#F8FAFC', // Very light blue/gray base
+    },
+    bgDecoration: {
+        position: 'absolute',
+        top: -100,
+        right: -80,
+        width: 350,
+        height: 350,
+        borderRadius: 175,
+        backgroundColor: '#FAE8FF', // Light Purple
+        opacity: 0.6,
     },
     center: {
         flex: 1,
@@ -155,146 +254,231 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        paddingHorizontal: 24,
-        paddingTop: 20,
-        paddingBottom: 40,
-    },
-    headerTitleMain: {
-        fontSize: 32,
-        fontWeight: '300', // Thin
-        color: '#1C1C1E',
-        lineHeight: 38,
-    },
-    headerTitleSub: {
-        fontSize: 32,
-        fontWeight: '600', // Bold
-        color: '#1C1C1E',
-        lineHeight: 38,
-    },
-    addCardContainer: {
         alignItems: 'center',
-        gap: 8,
+        paddingHorizontal: 24,
+        paddingTop: 10,
+        paddingBottom: 20,
     },
-    addCardText: {
+    backButton: {
+        width: 44,
+        height: 44,
+        borderRadius: 12,
+        backgroundColor: '#FFF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    headerTitleContainer: {
+        alignItems: 'center',
+    },
+    headerTitle: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: '#0F172A',
+    },
+    headerSubtitle: {
         fontSize: 12,
-        color: '#6B7280',
-        // fontWeight: '500',
+        color: '#64748B',
+        fontWeight: '500',
     },
     addButton: {
         width: 44,
         height: 44,
+        borderRadius: 12,
+        backgroundColor: '#E11D48', // Rose 600
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#F97316', // Orange 500 (Themed)
-        borderRadius: 12,
-        shadowColor: '#F97316',
+        shadowColor: '#E11D48',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
         elevation: 4,
     },
-    emptyState: {
-        flex: 1,
-        justifyContent: 'center',
+    tipContainer: {
+        flexDirection: 'row',
         alignItems: 'center',
-    },
-    emptyText: {
-        fontSize: 16,
-        color: '#6B7280',
+        backgroundColor: '#EFF6FF', // Blue 50
+        marginHorizontal: 24,
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: '#DBEAFE',
+        gap: 8,
         marginBottom: 20,
     },
-    addFirstButton: {
-        backgroundColor: '#1C1C1E',
-        paddingHorizontal: 24,
-        paddingVertical: 12,
-        borderRadius: 30,
+    tipText: {
+        fontSize: 12,
+        color: '#1E40AF',
+        fontWeight: '500',
     },
-    addFirstText: {
-        color: '#FFF',
-        fontWeight: '600',
+    contentScroll: {
+        flex: 1,
     },
-    scrollContent: {
-        paddingHorizontal: 16,
-        paddingTop: 20,
-    },
-    cardContainer: {
-        borderRadius: 24,
-        marginBottom: 0,
-        // Shadow
-        shadowColor: "#000",
-        shadowOffset: {
-            width: 0,
-            height: -2, // Upward shadow for stack effect
-        },
-        shadowOpacity: 0.1,
-        shadowRadius: 10,
-        elevation: 5,
-    },
-    // EXPANDED STYLES
-    cardContentExpanded: {
-        height: 220,
-        padding: 24,
-        justifyContent: 'space-between',
-    },
-    cardRow: {
+    sectionHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+        paddingHorizontal: 24,
+        marginBottom: 16,
     },
-    cardMaskedExpanded: {
-        fontSize: 18,
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: '800',
+        color: '#0F172A',
+    },
+    countBadge: {
+        backgroundColor: '#DCFCE7', // Green 100
+        paddingVertical: 4,
+        paddingHorizontal: 10,
+        borderRadius: 20,
+    },
+    countText: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#15803D', // Green 700
+    },
+    horizontalList: {
+        paddingLeft: 24,
+        paddingRight: 8, // +16 margin on last card = 24
+        paddingBottom: 24, // Space for shadow
+    },
+    noCardsText: {
+        marginLeft: 24,
+        color: '#94A3B8',
+        fontStyle: 'italic',
+        marginBottom: 24,
+    },
+
+    // CARD STYLES
+    cardContainer: {
+        width: 300,
+        height: 190,
+        borderRadius: 24,
+        padding: 24,
+        marginRight: 16,
+        justifyContent: 'space-between',
+        // Shadow/Elevation handled but overflow hidden for gradient often clips it on Android. 
+        // iOS handles shadow on layout usually.
+        shadowColor: '#E11D48',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.25,
+        shadowRadius: 12,
+        elevation: 8,
+    },
+    cardTexture: {
+        ...StyleSheet.absoluteFillObject,
+        overflow: 'hidden',
+        borderRadius: 24,
+    },
+    circle: {
+        position: 'absolute',
+        borderRadius: 999,
+        backgroundColor: '#FFF',
+    },
+    cardHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+    },
+    actionsRow: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    iconButton: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: 'rgba(0,0,0,0.15)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    brandBadge: {
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+    },
+    brandText: {
         color: '#FFF',
-        fontWeight: '500',
-        letterSpacing: 2,
+        fontSize: 10,
+        fontWeight: '800',
     },
-    logoContainerLight: {
-        // Logo style for dark bg
+    cardNameLabel: {
+        color: 'rgba(255,255,255,0.9)',
+        fontSize: 12,
+        fontWeight: '700',
+        letterSpacing: 1,
+        marginTop: 10,
+        textTransform: 'uppercase',
+    },
+    cardNumber: {
+        color: '#FFF',
+        fontSize: 22,
+        fontWeight: '600',
+        fontVariant: ['tabular-nums'],
+        letterSpacing: 2,
+        marginTop: 4,
     },
     cardFooter: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-end',
+        marginTop: 'auto',
     },
-    labelExpanded: {
-        color: '#9CA3AF',
-        fontSize: 12,
-        marginBottom: 4,
+    detailLabel: {
+        color: 'rgba(255,255,255,0.6)',
+        fontSize: 8,
+        fontWeight: '700',
+        marginBottom: 2,
     },
-    holderExpanded: {
+    detailValue: {
         color: '#FFF',
-        fontSize: 18,
-        fontWeight: '600',
+        fontSize: 12,
+        fontWeight: '700',
+        textTransform: 'uppercase',
     },
-    editButton: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: '#333',
-        justifyContent: 'center',
-        alignItems: 'center',
+
+    // Bottom Nav (Pill)
+    bottomNavContainer: {
+        position: 'absolute',
+        bottom: 30,
+        alignSelf: 'center',
     },
-    // COLLAPSED STYLES
-    cardContentCollapsed: {
-        height: 100, // Enough to show top part
-        padding: 24,
+    bottomNav: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 30,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        elevation: 10,
+        gap: 20,
     },
-    cardMaskedCollapsed: {
-        fontSize: 18,
-        color: '#1C1C1E',
-        fontWeight: '500',
-        letterSpacing: 2,
+    navItem: {
+        padding: 10,
     },
-    logoContainerDark: {
-        // Logo style for light bg
+    navItemActive: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#6366F1', // Indigo 500 (Homepage Style)
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 20,
+        gap: 8,
     },
-    brandText: {
-        fontSize: 16,
-        fontWeight: '900',
-        fontStyle: 'italic',
-        color: '#1C1C1E', // Default dark
-    }
+    navTextActive: {
+        color: '#FFFFFF',
+        fontWeight: '700',
+        fontSize: 14,
+    },
 });
+

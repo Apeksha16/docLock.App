@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, useWindowDimensions, ScrollView, StatusBar } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, useWindowDimensions, ScrollView, StatusBar, TextInput } from 'react-native';
 import { FontAwesome5, Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,6 +7,7 @@ import { useState } from 'react';
 import SecurityPinModal from './components/SecurityPinModal';
 import LogoutModal from './components/LogoutModal';
 import DeleteAccountModal from './components/DeleteAccountModal';
+import EditNameModal from './components/EditNameModal';
 import * as ImagePicker from 'expo-image-picker';
 import { Image, ActivityIndicator, Alert } from 'react-native';
 import { storageService } from './services/storageService';
@@ -27,6 +28,7 @@ export default function ProfileScreen({ onNavigate, userProfile, appConfig, user
     const [isSecurityModalVisible, setSecurityModalVisible] = useState(false);
     const [isLogoutVisible, setLogoutVisible] = useState(false);
     const [isDeleteVisible, setDeleteVisible] = useState(false);
+    const [isEditNameVisible, setEditNameVisible] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
 
     const handleShare = async () => {
@@ -110,6 +112,22 @@ export default function ProfileScreen({ onNavigate, userProfile, appConfig, user
             console.error(error);
         }
     };
+
+    const handleSaveName = async (newName: string) => {
+        try {
+            const uid = userId || userProfile?.uid || userProfile?.id;
+            if (!uid) throw new Error("User ID not found");
+
+            await firestoreService.saveUserProfile(uid, { fullName: newName });
+
+            setEditNameVisible(false);
+            Alert.alert('Success', 'Name updated successfully!');
+        } catch (error: any) {
+            Alert.alert('Error', 'Failed to update name. ' + error.message);
+        }
+    };
+
+
 
     const [isDeleting, setIsDeleting] = useState(false);
 
@@ -233,7 +251,7 @@ export default function ProfileScreen({ onNavigate, userProfile, appConfig, user
                             <View style={styles.userInfo}>
                                 <View style={styles.nameRow}>
                                     <Text style={styles.userName}>{userProfile?.fullName || 'User'}</Text>
-                                    <TouchableOpacity>
+                                    <TouchableOpacity onPress={() => setEditNameVisible(true)}>
                                         <Feather name="edit-2" size={16} color="#CCFBF1" />
                                     </TouchableOpacity>
                                 </View>
@@ -289,16 +307,7 @@ export default function ProfileScreen({ onNavigate, userProfile, appConfig, user
                             <MaterialIcons name="chevron-right" size={24} color="#CBD5E1" />
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.menuItem} onPress={() => onNavigate('secure-qr')}>
-                            <View style={[styles.menuIconBox, { backgroundColor: '#E0F2FE' }]}>
-                                <MaterialIcons name="qr-code" size={20} color="#0EA5E9" />
-                            </View>
-                            <View style={styles.menuTextContainer}>
-                                <Text style={styles.menuTitle}>My QR Code</Text>
-                                <Text style={styles.menuSubtitle}>Share your profile</Text>
-                            </View>
-                            <MaterialIcons name="chevron-right" size={24} color="#CBD5E1" />
-                        </TouchableOpacity>
+                        {/* QR Code Button Removed Reqeusted by User */}
 
                         <TouchableOpacity style={styles.menuItem} onPress={() => onNavigate('about')}>
                             <View style={[styles.menuIconBox, { backgroundColor: '#FFEDD5' }]}>
@@ -380,6 +389,13 @@ export default function ProfileScreen({ onNavigate, userProfile, appConfig, user
                 onDelete={handleDeleteAccount}
                 isLoading={isDeleting}
             />
+
+            <EditNameModal
+                visible={isEditNameVisible}
+                onClose={() => setEditNameVisible(false)}
+                currentName={userProfile?.fullName || ''}
+                onSave={handleSaveName}
+            />
         </View>
     );
 }
@@ -406,7 +422,7 @@ const styles = StyleSheet.create({
         opacity: 0.6,
     },
     scrollContent: {
-        paddingBottom: 180, // Increased to ensure bottom items clear the floating nav bar
+        paddingBottom: 50, // Reduced to minimum required to clear nav bar
     },
     header: {
         flexDirection: 'row',
@@ -482,6 +498,14 @@ const styles = StyleSheet.create({
         fontSize: 22,
         fontWeight: '900',
         color: '#FFFFFF',
+    },
+    userNameInput: {
+        fontSize: 22,
+        fontWeight: '900',
+        color: '#FFFFFF',
+        borderBottomWidth: 1,
+        borderBottomColor: '#CCFBF1',
+        paddingVertical: 0,
     },
     userMobile: {
         fontSize: 14,

@@ -11,20 +11,23 @@ const { width } = Dimensions.get('window');
 interface AddCardScreenProps {
     onNavigate: (screen: 'dashboard' | 'friends' | 'profile' | 'my-cards') => void;
     userId: string;
+    cardToEdit?: any; // Optional card data for editing
 }
 
-export default function AddCardScreen({ onNavigate, userId }: AddCardScreenProps) {
+export default function AddCardScreen({ onNavigate, userId, cardToEdit }: AddCardScreenProps) {
     // Camera Permission
     const [permission, requestPermission] = useCameraPermissions();
     const [isScanning, setIsScanning] = useState(false);
+    const [loading, setLoading] = useState(false);
 
     // Form inputs
-    const [cardType, setCardType] = useState<'debit' | 'credit'>('debit');
-    const [cardName, setCardName] = useState('');
-    const [cardNumber, setCardNumber] = useState('');
-    const [holderName, setHolderName] = useState('');
-    const [expiry, setExpiry] = useState('');
-    const [cvv, setCvv] = useState('');
+    // Form inputs initialized with cardToEdit if available
+    const [cardType, setCardType] = useState<'debit' | 'credit'>(cardToEdit?.cardType || 'debit');
+    const [cardName, setCardName] = useState(cardToEdit?.cardName || '');
+    const [cardNumber, setCardNumber] = useState(cardToEdit?.cardNumber || '');
+    const [holderName, setHolderName] = useState(cardToEdit?.holderName || 'NEW USER');
+    const [expiry, setExpiry] = useState(cardToEdit?.expiry || '');
+    const [cvv, setCvv] = useState(''); // CVV usually not stored or needs re-entry for security, but assuming stored for now or empty
 
     // Real-time Validation State: 'neutral' | 'valid' | 'invalid'
     const [numValidation, setNumValidation] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
@@ -115,7 +118,7 @@ export default function AddCardScreen({ onNavigate, userId }: AddCardScreenProps
         // Real-time Expiry Logic
         // Validate when full MM/YY is entered (5 chars)
         if (formatted.length === 5) {
-            const [expMonth, expYear] = formatted.split('/').map(num => parseInt(num));
+            const [expMonth, expYear] = formatted.split('/').map((num: string) => parseInt(num));
             const now = new Date();
             const currentYear = parseInt(now.getFullYear().toString().slice(-2)); // e.g. 26
 
@@ -162,7 +165,7 @@ export default function AddCardScreen({ onNavigate, userId }: AddCardScreenProps
 
         // Expiry Validation: MM/YY
         if (!expiry.match(/^(0[1-9]|1[0-2])\/\d{2}$/)) { Alert.alert('Invalid Expiry', 'Use MM/YY format.'); return false; }
-        const [expMonth, expYear] = expiry.split('/').map(num => parseInt(num));
+        const [expMonth, expYear] = expiry.split('/').map((num: string) => parseInt(num));
         const now = new Date();
         const currentYear = parseInt(now.getFullYear().toString().slice(-2)); // last 2 digits
         const currentMonth = now.getMonth() + 1;
@@ -213,22 +216,34 @@ export default function AddCardScreen({ onNavigate, userId }: AddCardScreenProps
     const handleAddCard = async () => {
         if (!validateCard()) return;
 
+        setLoading(true);
         // Passed validation
         try {
-            await firestoreService.addCard(userId, {
+            const cardData = {
                 cardType,
                 cardName,
                 cardNumber: cardNumber.replace(/\s+/g, ''), // Plaintext passed to service, service encrypts it
                 holderName,
                 expiry,
                 cvv
-            });
-            Alert.alert('Success', 'Card added securely!', [
-                { text: 'OK', onPress: () => onNavigate('my-cards') }
-            ]);
+            };
+
+            if (cardToEdit) {
+                await firestoreService.updateCard(userId, cardToEdit.id, cardData);
+                Alert.alert('Success', 'Card updated successfully!', [
+                    { text: 'OK', onPress: () => onNavigate('my-cards') }
+                ]);
+            } else {
+                await firestoreService.addCard(userId, cardData);
+                Alert.alert('Success', 'Card added securely!', [
+                    { text: 'OK', onPress: () => onNavigate('my-cards') }
+                ]);
+            }
         } catch (error) {
             console.error(error);
-            Alert.alert('Error', 'Failed to add card.');
+            Alert.alert('Error', 'Failed to save card.');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -280,7 +295,7 @@ export default function AddCardScreen({ onNavigate, userId }: AddCardScreenProps
                         <TouchableOpacity onPress={() => onNavigate('dashboard')} style={styles.backButton}>
                             <Feather name="arrow-left" size={24} color="#1E293B" />
                         </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Add New Card</Text>
+                        <Text style={styles.headerTitle}>{cardToEdit ? 'Edit Card' : 'Add New Card'}</Text>
                         <View style={{ width: 44 }} />
                     </View>
 
@@ -446,8 +461,16 @@ export default function AddCardScreen({ onNavigate, userId }: AddCardScreenProps
                             </View>
                         </View>
 
-                        <TouchableOpacity style={styles.addCardButton} onPress={handleAddCard}>
-                            <Text style={styles.addCardButtonText}>Add Card</Text>
+                        <TouchableOpacity
+                            style={styles.addCardButton}
+                            onPress={handleAddCard}
+                            disabled={loading}
+                        >
+                            {loading ? (
+                                <ActivityIndicator color="#FFF" />
+                            ) : (
+                                <Text style={styles.addCardButtonText}>{cardToEdit ? 'UPDATE CARD' : 'ADD CARD'}</Text>
+                            )}
                         </TouchableOpacity>
                     </ScrollView>
                 </KeyboardAvoidingView>
