@@ -1,44 +1,239 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, TextInput, Pressable, Alert } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, TextInput, Pressable, Alert, ActivityIndicator } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
 import { Ionicons, Feather, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { captureRef } from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
+import { firestoreService } from './services/firestoreService';
+
+interface SecureQRCardItemProps {
+    qr: any;
+    onDelete: (id: string) => void;
+    onEdit: (qr: any) => void;
+    styles: any;
+}
+
+const SecureQRCardItem = ({ qr, onDelete, onEdit, styles }: SecureQRCardItemProps) => {
+    const viewRef = useRef(null);
+    const [isDownloading, setIsDownloading] = useState(false);
+
+    const handleDownload = async () => {
+        try {
+            setIsDownloading(true);
+            // Wait for render update to hide buttons
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            const uri = await captureRef(viewRef, {
+                format: 'png',
+                quality: 1,
+            });
+
+            await Sharing.shareAsync(uri);
+        } catch (error) {
+            console.error("Download failed", error);
+            Alert.alert("Error", "Failed to download card.");
+        } finally {
+            setIsDownloading(false);
+        }
+    };
+
+    return (
+        <TouchableOpacity activeOpacity={0.9} onPress={() => onEdit(qr)} style={styles.cardContainer}>
+            <View ref={viewRef} collapsable={false}>
+                <LinearGradient
+                    colors={['#FB923C', '#EA580C']} // Orange 400 to Orange 600
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.cardGradient}
+                >
+                    {/* Geometric Overlay */}
+                    <View style={styles.geometricOverlay1} />
+                    <View style={styles.geometricOverlay2} />
+
+                    <View style={styles.cardContent}>
+                        {/* Left Side */}
+                        <View style={styles.cardLeft}>
+                            <View style={styles.filesBadge}>
+                                <Feather name="file-text" size={14} color="#FFFFFF" />
+                                <Text style={styles.filesBadgeText}>{qr.filesCount} Files</Text>
+                            </View>
+
+                            {/* Action Buttons - Hidden during download */}
+                            <View style={[styles.actionButtonsRow, { opacity: isDownloading ? 0 : 1 }]}>
+                                <TouchableOpacity style={styles.actionButton} onPress={handleDownload}>
+                                    <Feather name="download" size={18} color="#FFFFFF" />
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.actionButton} onPress={() => onDelete(qr.id)}>
+                                    <Feather name="trash-2" size={18} color="#FFFFFF" />
+                                </TouchableOpacity>
+                            </View>
+
+                            <View style={styles.cardInfo}>
+                                <Text style={styles.cardIdText} numberOfLines={1}>{qr.label}</Text>
+                                <View style={styles.dateRow}>
+                                    <Feather name="calendar" size={14} color="#FED7AA" />
+                                    <Text style={styles.dateText}>{qr.date}</Text>
+                                </View>
+                            </View>
+                        </View>
+
+                        {/* Right Side - QR Code */}
+                        <View style={styles.qrContainer}>
+                            <View style={styles.qrBox}>
+                                <QRCode
+                                    value={`https://doclock.app/verify/${qr.id}`}
+                                    size={90}
+                                    color="black"
+                                    backgroundColor="white"
+                                    enableLinearGradient={true}
+                                    linearGradient={['#F97316', '#DB2777']} // Orange to Pink/Red
+                                />
+                            </View>
+                        </View>
+                    </View>
+                </LinearGradient>
+            </View>
+        </TouchableOpacity>
+    );
+};
 
 interface SecureQRScreenProps {
     onNavigate: (screen: 'dashboard' | 'friends' | 'profile') => void;
+    userId?: string;
 }
 
-export default function SecureQRScreen({ onNavigate }: SecureQRScreenProps) {
-    const [qrCodes, setQrCodes] = useState<any[]>([]); // Start empty
+export default function SecureQRScreen({ onNavigate, userId }: SecureQRScreenProps) {
+    const [qrCodes, setQrCodes] = useState<any[]>([]);
+    const [loadingQrs, setLoadingQrs] = useState(true);
+
+    const [allDocuments, setAllDocuments] = useState<any[]>([]);
+    const [loadingDocs, setLoadingDocs] = useState(false);
+
     const [showAddModal, setShowAddModal] = useState(false);
+    const [editingQR, setEditingQR] = useState<any | null>(null);
+
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [qrToDelete, setQrToDelete] = useState<string | null>(null);
+    const [deleting, setDeleting] = useState(false);
+    const [saving, setSaving] = useState(false);
+
     const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
     const [label, setLabel] = useState('');
 
-    const toggleDoc = (doc: string) => {
-        if (selectedDocs.includes(doc)) {
-            setSelectedDocs(selectedDocs.filter(d => d !== doc));
-        } else {
-            setSelectedDocs([...selectedDocs, doc]);
+    useEffect(() => {
+        if (userId) {
+            fetchQRs();
+        }
+    }, [userId]);
+
+    const fetchQRs = async () => {
+        try {
+            if (!userId) return;
+            setLoadingQrs(true);
+            const qrs = await firestoreService.getSecureQRs(userId);
+            setQrCodes(qrs);
+        } catch (error) {
+            console.error("Failed to fetch QRs", error);
+        } finally {
+            setLoadingQrs(false);
         }
     };
 
-    const handleGenerateQR = () => {
-        if (label && selectedDocs.length > 0) {
-            setQrCodes([...qrCodes, { id: Date.now(), label, date: '08/01/2026', files: selectedDocs.length }]);
+    const handleOpenAddModal = async () => {
+        setEditingQR(null);
+        setLabel('');
+        setSelectedDocs([]);
+        setShowAddModal(true);
+        loadDocumentsIfNeeded();
+    };
+
+    const handleEditQR = (qr: any) => {
+        setEditingQR(qr);
+        setLabel(qr.label);
+        setSelectedDocs(qr.documentIds || []);
+        setShowAddModal(true);
+        loadDocumentsIfNeeded();
+    };
+
+    const loadDocumentsIfNeeded = async () => {
+        if (allDocuments.length === 0 && userId) {
+            setLoadingDocs(true);
+            try {
+                const docs = await firestoreService.getAllFiles(userId);
+                setAllDocuments(docs);
+            } catch (error) {
+                console.error("Failed to fetch documents", error);
+                Alert.alert("Error", "Could not fetch documents selection.");
+            } finally {
+                setLoadingDocs(false);
+            }
+        }
+    };
+
+    const toggleDoc = (docId: string) => {
+        if (selectedDocs.includes(docId)) {
+            setSelectedDocs(selectedDocs.filter(d => d !== docId));
+        } else {
+            setSelectedDocs([...selectedDocs, docId]);
+        }
+    };
+
+    const handleSaveQR = async () => {
+        if (!userId) return;
+        if (!label || selectedDocs.length === 0) return;
+
+        try {
+            setSaving(true);
+            if (editingQR) {
+                // Update
+                await firestoreService.updateSecureQR(userId, editingQR.id, {
+                    documentIds: selectedDocs,
+                    filesCount: selectedDocs.length
+                });
+            } else {
+                // Create
+                await firestoreService.addSecureQR(userId, {
+                    label,
+                    documentIds: selectedDocs,
+                    filesCount: selectedDocs.length
+                });
+            }
+
+            // Reset and Refresh
             setShowAddModal(false);
+            setEditingQR(null);
             setLabel('');
             setSelectedDocs([]);
+            fetchQRs(); // Refresh list
+        } catch (error) {
+            console.error("Failed to save QR", error);
+            Alert.alert("Error", "Failed to save Secure QR.");
+        } finally {
+            setSaving(false);
         }
     };
 
-    const handleDeleteQR = () => {
-        setQrCodes([]); // Clear all for demo, or delete specific if needed
-        setShowDeleteModal(false);
+    const confirmDelete = (qrId: string) => {
+        setQrToDelete(qrId);
+        setShowDeleteModal(true);
     };
 
-    const handleDownload = () => {
-        Alert.alert("Success", "Documents downloaded successfully.");
+    const handleDeleteQR = async () => {
+        if (!userId || !qrToDelete) return;
+        try {
+            setDeleting(true);
+            await firestoreService.deleteSecureQR(userId, qrToDelete);
+            setShowDeleteModal(false);
+            setQrToDelete(null);
+            fetchQRs(); // Refresh list
+        } catch (error) {
+            console.error("Failed to delete QR", error);
+            Alert.alert("Error", "Failed to remove QR.");
+        } finally {
+            setDeleting(false);
+        }
     };
 
     return (
@@ -57,13 +252,17 @@ export default function SecureQRScreen({ onNavigate }: SecureQRScreenProps) {
                         <Text style={styles.headerSubtitle}>{qrCodes.length} active codes</Text>
                     </View>
 
-                    <TouchableOpacity style={styles.addButton} onPress={() => setShowAddModal(true)}>
+                    <TouchableOpacity style={styles.addButton} onPress={handleOpenAddModal}>
                         <Feather name="plus" size={24} color="#FFFFFF" />
                     </TouchableOpacity>
                 </View>
 
                 <View style={styles.content}>
-                    {qrCodes.length === 0 ? (
+                    {loadingQrs ? (
+                        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                            <ActivityIndicator size="large" color="#F97316" />
+                        </View>
+                    ) : qrCodes.length === 0 ? (
                         /* Empty State */
                         <View style={styles.emptyStateContainer}>
                             <View style={styles.bigAddButton}>
@@ -75,54 +274,17 @@ export default function SecureQRScreen({ onNavigate }: SecureQRScreenProps) {
                     ) : (
                         /* List State */
                         <ScrollView showsVerticalScrollIndicator={false}>
-                            {qrCodes.map((qr, index) => (
-                                <View key={qr.id} style={styles.cardContainer}>
-                                    <LinearGradient
-                                        colors={['#FB923C', '#EA580C']} // Orange 400 to Orange 600
-                                        start={{ x: 0, y: 0 }}
-                                        end={{ x: 1, y: 1 }}
-                                        style={styles.cardGradient}
-                                    >
-                                        {/* Geometric Overlay */}
-                                        <View style={styles.geometricOverlay1} />
-                                        <View style={styles.geometricOverlay2} />
-
-                                        <View style={styles.cardContent}>
-                                            {/* Left Side */}
-                                            <View style={styles.cardLeft}>
-                                                <View style={styles.filesBadge}>
-                                                    <Feather name="file-text" size={14} color="#FFFFFF" />
-                                                    <Text style={styles.filesBadgeText}>{qr.files} Files</Text>
-                                                </View>
-
-                                                <View style={styles.actionButtonsRow}>
-                                                    <TouchableOpacity style={styles.actionButton} onPress={handleDownload}>
-                                                        <Feather name="download" size={18} color="#FFFFFF" />
-                                                    </TouchableOpacity>
-                                                    <TouchableOpacity style={styles.actionButton} onPress={() => setShowDeleteModal(true)}>
-                                                        <Feather name="trash-2" size={18} color="#FFFFFF" />
-                                                    </TouchableOpacity>
-                                                </View>
-
-                                                <View style={styles.cardInfo}>
-                                                    <Text style={styles.cardIdText}>{qr.label}</Text>
-                                                    <View style={styles.dateRow}>
-                                                        <Feather name="calendar" size={14} color="#FED7AA" />
-                                                        <Text style={styles.dateText}>{qr.date}</Text>
-                                                    </View>
-                                                </View>
-                                            </View>
-
-                                            {/* Right Side - QR Code */}
-                                            <View style={styles.qrContainer}>
-                                                <View style={styles.qrBox}>
-                                                    <MaterialCommunityIcons name="qrcode" size={90} color="#000000" />
-                                                </View>
-                                            </View>
-                                        </View>
-                                    </LinearGradient>
-                                </View>
+                            {qrCodes.map((qr) => (
+                                <SecureQRCardItem
+                                    key={qr.id}
+                                    qr={qr}
+                                    onDelete={confirmDelete}
+                                    onEdit={handleEditQR}
+                                    styles={styles}
+                                />
                             ))}
+                            {/* Spacer */}
+                            <View style={{ height: 100 }} />
                         </ScrollView>
                     )}
                 </View>
@@ -132,10 +294,9 @@ export default function SecureQRScreen({ onNavigate }: SecureQRScreenProps) {
             {/* Top Right Background Decoration */}
             <View style={styles.topRightDecoration} />
 
-            {/* Bottom Navigation Bar - Standard Dashboard Style */}
+            {/* Bottom Navigation Bar */}
             <View style={styles.bottomNavContainer}>
                 <View style={styles.bottomNav}>
-                    {/* Home is Active because we are in a Home flow */}
                     <TouchableOpacity style={styles.navItemActive} onPress={() => onNavigate('dashboard')}>
                         <Ionicons name="home" size={20} color="#FFFFFF" />
                         <Text style={styles.navTextActive}>Home</Text>
@@ -149,53 +310,65 @@ export default function SecureQRScreen({ onNavigate }: SecureQRScreenProps) {
                 </View>
             </View>
 
-            {/* Add QR Modal Overlay */}
+            {/* Add/Edit QR Modal Overlay */}
             {showAddModal && (
                 <View style={styles.modalOverlay}>
                     <Pressable style={styles.modalBackdrop} onPress={() => setShowAddModal(false)} />
-                    {/* Move container down to bottom sheet style */}
                     <View style={styles.addModalContainer}>
                         <View style={styles.modalHandle} />
                         <View style={styles.iconCircle}>
                             <MaterialCommunityIcons name="qrcode" size={32} color="#F97316" />
                         </View>
-                        <Text style={styles.modalTitle}>New Secure QR</Text>
+                        <Text style={styles.modalTitle}>
+                            {editingQR ? 'Edit Secure QR' : 'New Secure QR'}
+                        </Text>
 
                         <Text style={styles.inputLabel}>LABEL</Text>
-                        <View style={styles.textInputWrapper}>
+                        <View style={[styles.textInputWrapper, editingQR && { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0' }]}>
                             <TextInput
                                 placeholder="e.g. Travel, Health"
                                 placeholderTextColor="#94A3B8"
-                                style={styles.textInput}
+                                style={[styles.textInput, editingQR && { color: '#64748B' }]}
                                 value={label}
                                 onChangeText={setLabel}
+                                editable={!editingQR}
                             />
                         </View>
 
-                        <Text style={styles.inputLabel}>SELECT DOCUMENTS</Text>
-                        {/* Doc List Mock */}
-                        <View style={styles.docList}>
-                            {['IMG_4301.jpeg', 'Aadhar.pdf', 'PAN CARD.pdf'].map((doc) => {
-                                const isSelected = selectedDocs.includes(doc);
-                                return (
-                                    <TouchableOpacity
-                                        key={doc}
-                                        style={[
-                                            styles.docItemCard,
-                                            { backgroundColor: isSelected ? '#FFF7ED' : '#FFFFFF' }
-                                        ]}
-                                        onPress={() => toggleDoc(doc)}
-                                    >
-                                        <View style={[styles.docIcon, doc.endsWith('pdf') ? { backgroundColor: '#F97316' } : { backgroundColor: '#EC4899' }]}>
-                                            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 12 }}>{doc.endsWith('pdf') ? 'P' : 'I'}</Text>
-                                        </View>
-                                        <Text style={styles.docName}>{doc}</Text>
-                                        <View style={[styles.checkbox, isSelected ? styles.checkboxSelected : styles.checkboxUnselected]}>
-                                            {isSelected && <Feather name="check" size={14} color="white" />}
-                                        </View>
-                                    </TouchableOpacity>
-                                );
-                            })}
+                        <Text style={styles.inputLabel}>SELECT DOCUMENTS {editingQR && '(Update List)'}</Text>
+
+                        {/* Doc List */}
+                        <View style={{ width: '100%', height: 200, marginBottom: 24 }}>
+                            {loadingDocs ? (
+                                <ActivityIndicator color="#F97316" />
+                            ) : allDocuments.length === 0 ? (
+                                <Text style={{ textAlign: 'center', color: '#64748B', marginTop: 20 }}>No files found to link.</Text>
+                            ) : (
+                                <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                                    {allDocuments.map((doc) => {
+                                        const isSelected = selectedDocs.includes(doc.id);
+                                        const isPdf = (doc.name || '').toLowerCase().endsWith('.pdf');
+                                        return (
+                                            <TouchableOpacity
+                                                key={doc.id}
+                                                style={[
+                                                    styles.docItemCard,
+                                                    { backgroundColor: isSelected ? '#FFF7ED' : '#F8FAFC', borderWidth: isSelected ? 1 : 0, borderColor: '#F97316' }
+                                                ]}
+                                                onPress={() => toggleDoc(doc.id)}
+                                            >
+                                                <View style={[styles.docIcon, isPdf ? { backgroundColor: '#F97316' } : { backgroundColor: '#EC4899' }]}>
+                                                    <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 12 }}>{isPdf ? 'P' : 'I'}</Text>
+                                                </View>
+                                                <Text style={styles.docName} numberOfLines={1}>{doc.name}</Text>
+                                                <View style={[styles.checkbox, isSelected ? styles.checkboxSelected : styles.checkboxUnselected]}>
+                                                    {isSelected && <Feather name="check" size={14} color="white" />}
+                                                </View>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </ScrollView>
+                            )}
                         </View>
 
                         <TouchableOpacity
@@ -203,10 +376,16 @@ export default function SecureQRScreen({ onNavigate }: SecureQRScreenProps) {
                                 styles.generateButton,
                                 { backgroundColor: (label && selectedDocs.length > 0) ? '#F97316' : '#FBAC78' }
                             ]}
-                            onPress={handleGenerateQR}
-                            disabled={!(label && selectedDocs.length > 0)}
+                            onPress={handleSaveQR}
+                            disabled={!(label && selectedDocs.length > 0) || saving}
                         >
-                            <Text style={styles.generateButtonText}>Generate Secure QR</Text>
+                            {saving ? (
+                                <ActivityIndicator color="white" />
+                            ) : (
+                                <Text style={styles.generateButtonText}>
+                                    {editingQR ? 'Update Secure QR' : 'Generate Secure QR'}
+                                </Text>
+                            )}
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -215,7 +394,7 @@ export default function SecureQRScreen({ onNavigate }: SecureQRScreenProps) {
             {/* Delete Confirmation Modal */}
             {showDeleteModal && (
                 <View style={styles.deleteModalOverlay}>
-                    <Pressable style={styles.modalBackdrop} onPress={() => setShowDeleteModal(false)} />
+                    <Pressable style={styles.modalBackdrop} onPress={() => !deleting && setShowDeleteModal(false)} />
                     <View style={styles.deleteModalContent}>
                         <View style={styles.deleteIconCircle}>
                             <Feather name="trash-2" size={24} color="#FFFFFF" />
@@ -223,12 +402,24 @@ export default function SecureQRScreen({ onNavigate }: SecureQRScreenProps) {
                         <Text style={styles.deleteTitle}>Delete QR?</Text>
                         <Text style={styles.deleteSubtitle}>Are you sure you want to delete this Secure QR from your vault?</Text>
 
-                        <TouchableOpacity style={styles.deleteConfirmButton} onPress={handleDeleteQR}>
-                            <Text style={styles.deleteConfirmText}>Yes, Delete</Text>
+                        <TouchableOpacity
+                            style={[styles.deleteConfirmButton, deleting && { opacity: 0.7 }]}
+                            onPress={handleDeleteQR}
+                            disabled={deleting}
+                        >
+                            {deleting ? (
+                                <ActivityIndicator color="white" />
+                            ) : (
+                                <Text style={styles.deleteConfirmText}>Yes, Delete</Text>
+                            )}
                         </TouchableOpacity>
 
-                        <TouchableOpacity onPress={() => setShowDeleteModal(false)} style={{ padding: 10 }}>
-                            <Text style={styles.cancelText}>Cancel</Text>
+                        <TouchableOpacity
+                            onPress={() => setShowDeleteModal(false)}
+                            style={{ padding: 10 }}
+                            disabled={deleting}
+                        >
+                            <Text style={[styles.cancelText, deleting && { opacity: 0.5 }]}>Cancel</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
