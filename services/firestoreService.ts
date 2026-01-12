@@ -513,8 +513,23 @@ export const firestoreService = {
             };
             console.log("DEBUG: Encryption done. Saving...");
 
-            const cardsRef = collection(db, "users", userId, "cards");
-            await addDoc(cardsRef, encryptedCard);
+            // Use batch to add card and increment cardsCount atomically
+            const { writeBatch, increment, doc } = await import("firebase/firestore");
+            const batch = writeBatch(db);
+
+            // Create reference for new card with auto-generated ID
+            const cardsCollectionRef = collection(db, "users", userId, "cards");
+            const newCardRef = doc(cardsCollectionRef);
+
+            batch.set(newCardRef, encryptedCard);
+
+            // Increment user's cards count
+            const userRef = doc(db, "users", userId);
+            batch.update(userRef, {
+                cardsCount: increment(1)
+            });
+
+            await batch.commit();
 
             loggerService.logResponse('firestoreService.addCard', { success: true });
         } catch (error) {
@@ -544,6 +559,175 @@ export const firestoreService = {
         } catch (error) {
             loggerService.logApiError('firestoreService.getCards', error);
             throw error;
+        }
+    },
+
+    /**
+     * Get all files (flat list) for selection
+     */
+    getAllFiles: async (userId: string) => {
+        try {
+            loggerService.logRequest('firestoreService.getAllFiles', { userId });
+            const docsRef = collection(db, "users", userId, "documents");
+            const q = query(docsRef, where("type", "==", "file"), where("deleted", "!=", true));
+            const snapshot = await getDocs(q);
+
+            const files = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+
+            loggerService.logResponse('firestoreService.getAllFiles', { count: files.length });
+            return files;
+        } catch (error) {
+            loggerService.logApiError('firestoreService.getAllFiles', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Add a Secure QR
+     */
+    addSecureQR: async (userId: string, qrData: { label: string, documentIds: string[], filesCount: number }) => {
+        try {
+            loggerService.logRequest('firestoreService.addSecureQR', { userId, qrData });
+
+            const { writeBatch, increment, doc } = await import("firebase/firestore");
+            const batch = writeBatch(db);
+
+            // New QR Ref
+            const qrsRef = collection(db, "users", userId, "qrs");
+            const newQrRef = doc(qrsRef);
+
+            const newItem = {
+                ...qrData,
+                createdAt: new Date().toISOString(),
+                // Format date for display: DD/MM/YYYY
+                date: new Date().toLocaleDateString('en-GB')
+            };
+
+            batch.set(newQrRef, newItem);
+
+            // Increment qrsCount
+            const userRef = doc(db, "users", userId);
+            batch.update(userRef, {
+                qrsCount: increment(1)
+            });
+
+            await batch.commit();
+
+            // Notify
+            await firestoreService.addNotification(userId, {
+                title: 'New QR Created',
+                message: `Secure QR "${qrData.label}" has been created with ${qrData.filesCount} files.`,
+                type: 'qr'
+            });
+
+            loggerService.logResponse('firestoreService.addSecureQR', { success: true });
+        } catch (error) {
+            loggerService.logApiError('firestoreService.addSecureQR', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Get Secure QRs
+     */
+    getSecureQRs: async (userId: string) => {
+        try {
+            loggerService.logRequest('firestoreService.getSecureQRs', { userId });
+            const qrsRef = collection(db, "users", userId, "qrs");
+            const snapshot = await getDocs(qrsRef);
+
+            const qrs = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+
+            loggerService.logResponse('firestoreService.getSecureQRs', { count: qrs.length });
+            return qrs;
+        } catch (error) {
+            loggerService.logApiError('firestoreService.getSecureQRs', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Update Secure QR
+     */
+    updateSecureQR: async (userId: string, qrId: string, updates: { documentIds: string[], filesCount: number }) => {
+        try {
+            loggerService.logRequest('firestoreService.updateSecureQR', { userId, qrId, updates });
+            const { doc, updateDoc } = await import("firebase/firestore");
+
+            const qrRef = doc(db, "users", userId, "qrs", qrId);
+            await updateDoc(qrRef, updates);
+
+            loggerService.logResponse('firestoreService.updateSecureQR', { success: true });
+
+            // Notify
+            await firestoreService.addNotification(userId, {
+                title: 'Secure QR Updated',
+                message: 'A secure QR code and its linked documents have been updated.',
+                type: 'qr'
+            });
+        } catch (error) {
+            loggerService.logApiError('firestoreService.updateSecureQR', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Delete Secure QR
+     */
+    deleteSecureQR: async (userId: string, qrId: string) => {
+        try {
+            loggerService.logRequest('firestoreService.deleteSecureQR', { userId, qrId });
+
+            const { writeBatch, increment, doc } = await import("firebase/firestore");
+            const batch = writeBatch(db);
+
+            const qrRef = doc(db, "users", userId, "qrs", qrId);
+            batch.delete(qrRef);
+
+            // Decrement qrsCount
+            const userRef = doc(db, "users", userId);
+            batch.update(userRef, {
+                qrsCount: increment(-1)
+            });
+
+            await batch.commit();
+
+            loggerService.logResponse('firestoreService.deleteSecureQR', { success: true });
+
+            // Notify
+            await firestoreService.addNotification(userId, {
+                title: 'Secure QR Deleted',
+                message: 'A secure QR code has been permanently removed.',
+                type: 'qr'
+            });
+
+        } catch (error) {
+            loggerService.logApiError('firestoreService.deleteSecureQR', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Add Notification
+     */
+    addNotification: async (userId: string, notification: { title: string, message: string, type: 'qr' | 'system' | 'alert' }) => {
+        try {
+            const { addDoc, collection } = await import("firebase/firestore");
+            const notifRef = collection(db, "users", userId, "notifications");
+            await addDoc(notifRef, {
+                ...notification,
+                read: false,
+                createdAt: new Date().toISOString()
+            });
+        } catch (error) {
+            // Non-blocking error logging
+            console.error("Failed to add notification", error);
         }
     }
 };

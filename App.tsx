@@ -155,7 +155,7 @@ export default function App() {
           onNavigate={(screen) => handleNavigate(screen)}
         />;
       case 'secure-qr':
-        return <SecureQRScreen onNavigate={(screen) => handleNavigate(screen)} />;
+        return <SecureQRScreen onNavigate={(screen) => handleNavigate(screen)} userId={user?.uid} />;
       case 'my-cards':
         return <MyCardsScreen onNavigate={(screen) => handleNavigate(screen)} userId={user?.uid || ''} />;
       case 'add-card':
