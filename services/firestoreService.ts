@@ -843,6 +843,48 @@ export const firestoreService = {
     },
 
     /**
+     * Subscribe to Friends (Real-time)
+     */
+    subscribeToFriends: (userId: string, onUpdate: (friends: any[]) => void) => {
+        loggerService.logRequest('firestoreService.subscribeToFriends', { userId });
+        const friendsRef = collection(db, "users", userId, "friends");
+        const q = query(friendsRef, orderBy('addedAt', 'desc'));
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const friends = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            loggerService.logResponse('firestoreService.subscribeToFriends', { count: friends.length });
+            onUpdate(friends);
+        }, (error) => {
+            loggerService.logApiError('firestoreService.subscribeToFriends', error);
+        });
+        return unsubscribe;
+    },
+
+    /**
+     * Subscribe to Secure QRs (Real-time)
+     */
+    subscribeToSecureQRs: (userId: string, onUpdate: (qrs: any[]) => void) => {
+        loggerService.logRequest('firestoreService.subscribeToSecureQRs', { userId });
+        const qrsRef = collection(db, "users", userId, "qrs");
+        const q = query(qrsRef, orderBy('createdAt', 'desc'));
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const qrs = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            loggerService.logResponse('firestoreService.subscribeToSecureQRs', { count: qrs.length });
+            onUpdate(qrs);
+        }, (error) => {
+            loggerService.logApiError('firestoreService.subscribeToSecureQRs', error);
+        });
+        return unsubscribe;
+    },
+
+    /**
      * Add Notification
      */
     addNotification: addNotificationHelper
