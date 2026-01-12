@@ -123,22 +123,23 @@ export default function SecureQRScreen({ onNavigate, userId }: SecureQRScreenPro
     const [label, setLabel] = useState('');
 
     useEffect(() => {
-        if (userId) {
-            fetchQRs();
-        }
+        if (!userId) return;
+
+        const unsubscribe = firestoreService.subscribeToSecureQRs(userId, (data) => {
+            setQrCodes(data);
+            setLoadingQrs(false);
+        });
+
+        return () => unsubscribe();
     }, [userId]);
 
-    const fetchQRs = async () => {
-        try {
-            if (!userId) return;
-            setLoadingQrs(true);
-            const qrs = await firestoreService.getSecureQRs(userId);
-            setQrCodes(qrs);
-        } catch (error) {
-            console.error("Failed to fetch QRs", error);
-        } finally {
-            setLoadingQrs(false);
-        }
+    const fetchQRs = () => {
+        // Placeholder as fetch is now real-time, but keeping function if used elsewhere or for explicit refresh if needed (though listeners handle it)
+        // Actually, let's keep it as no-op or just remove usages.
+        // But wait, it's used in handleSaveQR and handleDeleteQR. 
+        // Since we have a listener, we don't need to manually fetch anymore!
+        // I will simply remove the manual calls to fetchQRs in those functions later.
+        // For now, let's comment it out or make it empty to avoid breaking refs.
     };
 
     const handleOpenAddModal = async () => {
@@ -210,7 +211,7 @@ export default function SecureQRScreen({ onNavigate, userId }: SecureQRScreenPro
             setEditingQR(null);
             setLabel('');
             setSelectedDocs([]);
-            fetchQRs(); // Refresh list
+            // fetchQRs(); // Handled by subscription
         } catch (error) {
             console.error("Failed to save QR", error);
             Alert.alert("Error", "Failed to save Secure QR.");
@@ -232,7 +233,7 @@ export default function SecureQRScreen({ onNavigate, userId }: SecureQRScreenPro
             await firestoreService.deleteSecureQR(userId, qrToDelete, qrToDeleteLabel);
             setShowDeleteModal(false);
             setQrToDelete(null);
-            fetchQRs(); // Refresh list
+            // fetchQRs(); // Handled by subscription
         } catch (error) {
             console.error("Failed to delete QR", error);
             Alert.alert("Error", "Failed to remove QR.");

@@ -104,21 +104,18 @@ export default function FriendsScreen({ onNavigate, userId }: FriendsScreenProps
         }
     };
 
-    // Fetch friends on mount
+    // Subscribe to friends on mount
     React.useEffect(() => {
         if (!userId) return;
-        const fetchFriends = async () => {
-            try {
-                const data = await firestoreService.getFriends(userId);
-                setFriends(data);
-            } catch (error) {
-                console.error("Failed to fetch friends", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchFriends();
-    }, [userId, showAddFriend]); // Refetch when coming back from Add Friend
+
+        const unsubscribe = firestoreService.subscribeToFriends(userId, (data) => {
+            setFriends(data);
+            setIsLoading(false);
+        });
+
+        // Cleanup subscription on unmount
+        return () => unsubscribe();
+    }, [userId]);
 
     const handleAddFriend = () => {
         // Button Scale Animation
