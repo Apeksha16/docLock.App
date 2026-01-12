@@ -228,12 +228,12 @@ export default function FriendsScreen({ onNavigate, userId }: FriendsScreenProps
                                 <View key={friend.id} style={styles.friendCard}>
                                     <View style={styles.friendHeader}>
                                         <View style={styles.friendAvatar}>
-                                            {friend.photoURL ? (
+                                            {friend.photoURL && friend.photoURL.length > 10 ? (
                                                 <Image source={{ uri: friend.photoURL }} style={styles.avatarImage} />
                                             ) : (
                                                 <View style={[styles.avatarImage, { backgroundColor: '#EC4899', justifyContent: 'center', alignItems: 'center' }]}>
                                                     <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 18 }}>
-                                                        {(friend.fullName || friend.name || '?')[0].toUpperCase()}
+                                                        {(friend.fullName || friend.name || '?')[0]?.toUpperCase() || '?'}
                                                     </Text>
                                                 </View>
                                             )}
@@ -523,8 +523,8 @@ const styles = StyleSheet.create({
     },
     header: {
         alignItems: 'center',
-        marginTop: 40,
-        marginBottom: 60,
+        marginTop: 20, // Reduced from 40
+        marginBottom: 30, // Reduced from 60
     },
     addFriendHeaderRow: {
         flexDirection: 'row',
