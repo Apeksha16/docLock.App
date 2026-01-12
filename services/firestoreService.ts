@@ -47,13 +47,14 @@ const updateParentMetaCount = async (userId: string, parentId: string | null, in
 // Standalone Notification Helper
 const addNotificationHelper = async (userId: string, notification: { title: string, message: string, type: 'qr' | 'system' | 'alert' }) => {
     try {
-        const { addDoc, collection } = await import("firebase/firestore");
+        console.log("DEBUG: addNotificationHelper called", notification);
         const notifRef = collection(db, "users", userId, "notifications");
         await addDoc(notifRef, {
             ...notification,
             read: false,
             createdAt: new Date().toISOString()
         });
+        console.log("DEBUG: Notification added successfully");
     } catch (error) {
         console.error("Failed to add notification", error);
     }
@@ -545,6 +546,13 @@ export const firestoreService = {
             });
 
             await batch.commit();
+
+            // Notify
+            await addNotificationHelper(userId, {
+                title: 'New Card Added',
+                message: `A new ${cardData.cardType || 'credit'} card ending in ****${String(cardData.cardNumber || '').slice(-4)} has been added to your vault.`,
+                type: 'system' // Using 'system' or 'alert' as it's a card
+            });
 
             loggerService.logResponse('firestoreService.addCard', { success: true });
         } catch (error) {
