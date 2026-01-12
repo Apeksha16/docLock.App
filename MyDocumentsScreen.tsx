@@ -929,14 +929,15 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         backgroundColor: '#FFFFFF',
-        padding: 16,
-        borderRadius: 16,
-        marginBottom: 12,
-        shadowColor: '#64748B',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-        elevation: 1,
+        paddingVertical: 20,
+        paddingHorizontal: 20,
+        borderRadius: 24, // Bubbly look
+        marginBottom: 16,
+        shadowColor: '#EA580C', // Slight orange tint to shadow
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.06,
+        shadowRadius: 12,
+        elevation: 2,
     },
     docItemLeft: {
         flexDirection: 'row',
@@ -944,380 +945,60 @@ const styles = StyleSheet.create({
         gap: 16,
     },
     docIconContainer: {
-        width: 48,
-        height: 48,
-        borderRadius: 12,
+        width: 56,
+        height: 56,
+        borderRadius: 18,
         justifyContent: 'center',
         alignItems: 'center',
     },
     folderIconBg: {
-        backgroundColor: '#FFEDD5', // Orange 100
+        backgroundColor: '#FFEDD5', // Orange 100 - consistent peach
     },
     fileIconBg: {
-        backgroundColor: '#FEF3C7', // Amber 100
+        backgroundColor: '#FFF7ED', // Orange 50
     },
     docName: {
-        fontSize: 16,
-        fontWeight: '700',
+        fontSize: 18,
+        fontWeight: '800', // Extra bold
         color: '#1E293B',
         marginBottom: 4,
     },
     docMeta: {
-        fontSize: 12,
+        fontSize: 14,
         color: '#94A3B8',
-        fontWeight: '500',
+        fontWeight: '600',
     },
     moreButton: {
         padding: 8,
     },
+    // ... options menu ...
     optionsMenu: {
         position: 'absolute',
-        top: 40,
-        right: 16,
+        top: 50,
+        right: 20,
         backgroundColor: 'white',
-        borderRadius: 12,
-        shadowColor: '#94A3B8',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 10,
-        elevation: 5,
-        zIndex: 100,
-        minWidth: 140,
-        paddingVertical: 4,
-    },
-    optionItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        gap: 10,
-    },
-    optionText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#475569',
-    },
-    optionDivider: {
-        height: 1,
-        backgroundColor: '#F1F5F9',
-        marginHorizontal: 8,
-    },
-
-    // Bottom Nav
-    bottomNavContainer: {
-        position: 'absolute',
-        bottom: 30,
-        left: 0,
-        right: 0,
-        alignItems: 'center',
-    },
-    bottomNavWrapper: {
-        // Logic for FAB if needed
-        marginBottom: 10, // Adjust position relative to nav
-        alignItems: 'center',
-        zIndex: 200,
-    },
-    fabButton: {
-        width: 56,
-        height: 56,
-        borderRadius: 20, // Squircle shape
-        backgroundColor: '#F97316', // Orange 500
-        justifyContent: 'center',
-        alignItems: 'center',
-        shadowColor: '#F97316',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.4,
-        shadowRadius: 12,
-        elevation: 8,
-        zIndex: 200,
-    },
-    fabButtonOpen: {
-        backgroundColor: '#F97316',
-        // No rotation needed for icon swap
-    },
-    fabIconOpen: {
-        // No rotation needed
-    },
-    fabMenuContainer: {
-        position: 'absolute',
-        bottom: 70, // Above the FAB
-        gap: 12,
-        zIndex: 199,
-        width: 200, // Ensure enough width for buttons
-    },
-    fabMenuItemPrimary: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#F97316',
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        borderRadius: 24,
-        gap: 8,
-        shadowColor: '#F97316',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 4,
-        width: '100%',
-        justifyContent: 'center',
-    },
-    fabMenuItemSecondary: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#475569', // Dark grey/slate
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        borderRadius: 24,
-        gap: 8,
-        shadowColor: '#475569',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 4,
-        width: '100%',
-        justifyContent: 'center',
-    },
-    fabMenuItemText: {
-        color: 'white',
-        fontWeight: '700',
-        fontSize: 14,
-    },
-    bottomNav: {
-        // ... unused standard nav ...
-    },
-    pillNav: {
-        flexDirection: 'row',
-        backgroundColor: '#FFFFFF',
-        paddingVertical: 6,
-        paddingHorizontal: 6,
-        borderRadius: 32,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 16,
-        elevation: 10,
-        gap: 8,
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        width: '90%', // Almost full width but floating
-        maxWidth: 340,
-    },
-    navItem: {
-        flex: 1,
-        height: 48,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderRadius: 24,
-    },
-    navItemActive: {
-        flex: 1.2, // Slightly wider
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#6366F1', // Indigo color from screenshot (Reverted)
-        paddingVertical: 12,
-        borderRadius: 24,
-        gap: 8,
-    },
-    navTextActive: {
-        color: '#FFFFFF',
-        fontWeight: '600',
-        fontSize: 15,
-    },
-
-    // Modal
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'flex-end',
-    },
-    bottomSheet: {
-        backgroundColor: 'white',
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        padding: 24,
-        paddingBottom: 40,
-        alignItems: 'center',
-    },
-    dragHandle: {
-        width: 40,
-        height: 4,
-        backgroundColor: '#E2E8F0',
-        borderRadius: 2,
-        marginBottom: 24,
-    },
-    folderIconContainer: {
-        width: 64,
-        height: 64,
-        borderRadius: 20,
-        backgroundColor: '#EFF6FF',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    modalTitle: {
-        fontSize: 18,
-        fontWeight: '800',
-        color: '#1E293B',
-        marginBottom: 24,
-    },
-    modalInput: {
-        width: '100%',
-        backgroundColor: '#F8FAFC',
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-        borderRadius: 12,
-        padding: 16,
-        fontSize: 16,
-        color: '#1E293B',
-        marginBottom: 24,
-    },
-    modalButtons: {
-        flexDirection: 'row',
-        gap: 16,
-        width: '100%',
-    },
-    modalCancelButton: {
-        flex: 1,
-        paddingVertical: 16,
-        backgroundColor: '#F1F5F9',
-        borderRadius: 12,
-        alignItems: 'center',
-    },
-    modalCancelText: {
-        color: '#64748B',
-        fontWeight: '700',
-        fontSize: 16,
-    },
-    modalCreateButton: {
-        flex: 1,
-        paddingVertical: 16,
-        borderRadius: 12,
-        alignItems: 'center',
-    },
-    modalCreateText: {
-        color: 'white',
-        fontWeight: '700',
-        fontSize: 16,
-    },
-    modalInputActive: {
-        borderColor: '#F97316',
-        backgroundColor: '#FFFFFF',
-    },
-
-    // Viewer
-    viewerContainer: {
-        flex: 1,
-        backgroundColor: '#000000',
-    },
-    viewerHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingTop: 10,
-        marginBottom: 20,
-    },
-    viewerBackBtn: {
-        padding: 12,
-    },
-    viewerTitle: {
-        color: 'white',
-        fontSize: 16,
-        fontWeight: '700',
-    },
-    viewerDate: {
-        color: '#94A3B8',
-        fontSize: 12,
-        marginTop: 2,
-    },
-    viewerContent: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    filePreviewPlaceholder: {
-        width: width * 0.8,
-        height: height * 0.5,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    viewerFooter: {
-        flexDirection: 'row',
-        justifyContent: 'space-evenly',
-        paddingBottom: 40,
-        paddingTop: 20,
-    },
-    viewerActionBtn: {
-        alignItems: 'center',
-        gap: 8,
-    },
-    viewerActionIcon: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: '#1E293B',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    viewerActionText: {
-        color: 'white',
-        fontSize: 10,
-        fontWeight: '700',
-        letterSpacing: 0.5,
-    },
-
-    // Upload Modal specific
-    uploadDropZone: {
-        width: '100%',
-        borderWidth: 1.5,
-        borderColor: '#E2E8F0',
-        borderStyle: 'dashed',
         borderRadius: 16,
-        padding: 32,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 24,
-        backgroundColor: '#F8FAFC',
+        shadowColor: '#64748B',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.15,
+        shadowRadius: 20,
+        elevation: 10,
+        zIndex: 100,
+        minWidth: 150,
+        paddingVertical: 6,
     },
-    uploadMainText: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#1E293B',
-        marginBottom: 4,
-        marginTop: 8,
-    },
-    uploadSubText: {
-        fontSize: 13,
-        color: '#94A3B8',
-        fontWeight: '500',
-        textAlign: 'center',
-    },
-
-    // Delete Modal Text
-    deleteConfirmText: {
-        fontSize: 14,
-        color: '#64748B',
-        textAlign: 'center',
-        marginBottom: 24,
-        lineHeight: 20,
-    },
-    overlay: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'transparent',
-        zIndex: 50,
-    },
+    // ...
     initialIcon: {
-        width: 24,
-        height: 24,
+        width: '100%',
+        height: '100%',
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'rgba(255, 255, 255, 0.5)',
-        borderRadius: 4,
+        backgroundColor: 'transparent', // Removed inner background
+        borderRadius: 0,
     },
     initialText: {
-        fontSize: 14,
-        fontWeight: 'bold',
-        color: '#B45309', // Darker amber/orange
+        fontSize: 22,
+        fontWeight: '800',
+        color: '#C2410C', // Darker orange/brown
     },
 });
