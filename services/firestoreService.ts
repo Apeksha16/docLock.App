@@ -9,7 +9,9 @@ import {
     getDocs,
     onSnapshot,
     deleteDoc,
-    addDoc
+    addDoc,
+    writeBatch,
+    increment
 } from "firebase/firestore";
 import { db } from "../firebaseConfig";
 import { loggerService } from "./loggerService";
@@ -194,9 +196,7 @@ export const firestoreService = {
             loggerService.logRequest('firestoreService.updateStorageUsage', { userId, sizeChangeBytes });
             const userRef = doc(db, "users", userId);
 
-            // We use increment provided by firestore for atomic updates
-            const { increment } = await import("firebase/firestore");
-
+            // Atomic update
             await updateDoc(userRef, {
                 storageUsed: increment(sizeChangeBytes)
             });
@@ -251,7 +251,6 @@ export const firestoreService = {
             const colRef = collection(db, path);
             const snapshot = await getDocs(colRef);
 
-            const { writeBatch } = await import("firebase/firestore");
             const batch = writeBatch(db);
 
             snapshot.docs.forEach((doc) => {
@@ -423,7 +422,6 @@ export const firestoreService = {
             const docsRef = collection(db, "users", userId, "documents");
 
             // Atomic operations: Add doc + Increment count
-            const { writeBatch, increment } = await import("firebase/firestore");
             const batch = writeBatch(db);
 
             const newDocRef = doc(docsRef); // Generate ID
@@ -470,7 +468,6 @@ export const firestoreService = {
             // Check if it's already deleted to avoid double decrement if called multiple times (optional safety)
             // For now, simpler implementation assuming UI handles single click
 
-            const { writeBatch, increment } = await import("firebase/firestore");
             const batch = writeBatch(db);
 
             batch.update(docRef, { deleted: true });
@@ -530,7 +527,6 @@ export const firestoreService = {
             console.log("DEBUG: Encryption done. Saving...");
 
             // Use batch to add card and increment cardsCount atomically
-            const { writeBatch, increment, doc } = await import("firebase/firestore");
             const batch = writeBatch(db);
 
             // Create reference for new card with auto-generated ID
@@ -615,7 +611,8 @@ export const firestoreService = {
         try {
             loggerService.logRequest('firestoreService.addSecureQR', { userId, qrData });
 
-            const { writeBatch, increment, doc } = await import("firebase/firestore");
+            loggerService.logRequest('firestoreService.addSecureQR', { userId, qrData });
+
             const batch = writeBatch(db);
 
             // New QR Ref
@@ -681,7 +678,6 @@ export const firestoreService = {
     updateSecureQR: async (userId: string, qrId: string, updates: { documentIds: string[], filesCount: number }) => {
         try {
             loggerService.logRequest('firestoreService.updateSecureQR', { userId, qrId, updates });
-            const { doc, updateDoc } = await import("firebase/firestore");
 
             const qrRef = doc(db, "users", userId, "qrs", qrId);
             await updateDoc(qrRef, updates);
@@ -707,7 +703,8 @@ export const firestoreService = {
         try {
             loggerService.logRequest('firestoreService.deleteSecureQR', { userId, qrId });
 
-            const { writeBatch, increment, doc } = await import("firebase/firestore");
+            loggerService.logRequest('firestoreService.deleteSecureQR', { userId, qrId });
+
             const batch = writeBatch(db);
 
             const qrRef = doc(db, "users", userId, "qrs", qrId);
