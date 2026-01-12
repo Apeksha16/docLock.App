@@ -83,17 +83,26 @@ export default function SecurityPinModal({ visible, onClose, userId, mode = 'set
                 handleReset();
                 return;
             }
+
+            // Check if new PIN is same as old PIN
+            if (storedMpin && cryptoService.verifyMpin(newPin, storedMpin, userId)) {
+                Alert.alert('Same PIN', 'New PIN cannot be the same as your current PIN. Please choose a different one.');
+                handleReset();
+                return;
+            }
+
             setIsLoading(true);
             const hashedPin = cryptoService.hashMpin(newPin, userId);
             // Save to Firestore
             await firestoreService.updateUserMpin(userId, hashedPin);
 
             // Trigger Notification
-            await notificationService.sendNotification(userId, {
-                title: 'Security Update',
-                description: 'Your MPIN has been updated successfully.',
-                type: 'security'
-            });
+            await notificationService.sendNotification(
+                userId,
+                'Security Update',
+                'Your MPIN has been updated successfully.',
+                'security'
+            );
 
             Alert.alert('Success', 'Your MPIN has been set securely.');
 

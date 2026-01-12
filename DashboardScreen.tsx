@@ -247,7 +247,7 @@ export default function DashboardScreen({ onNavigate, userProfile, notifications
                             <MaterialCommunityIcons name="file-document-outline" size={24} color="#4F46E5" />
                         </View>
                         <Text style={styles.gridLabel}>Documents</Text>
-                        <Text style={styles.gridSubLabel}>3 Files</Text>
+                        <Text style={styles.gridSubLabel}>{userProfile?.documentsCount || 0} Files</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.gridItem} onPress={() => onNavigate('my-cards')}>

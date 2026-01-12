@@ -157,11 +157,11 @@ export default function App() {
       case 'secure-qr':
         return <SecureQRScreen onNavigate={(screen) => handleNavigate(screen)} />;
       case 'my-cards':
-        return <MyCardsScreen onNavigate={(screen) => handleNavigate(screen)} />;
+        return <MyCardsScreen onNavigate={(screen) => handleNavigate(screen)} userId={user?.uid || ''} />;
       case 'add-card':
-        return <AddCardScreen onNavigate={(screen) => handleNavigate(screen)} />;
+        return <AddCardScreen onNavigate={(screen) => handleNavigate(screen)} userId={user?.uid || ''} />;
       case 'my-documents':
-        return <MyDocumentsScreen onNavigate={(screen) => handleNavigate(screen)} />;
+        return <MyDocumentsScreen onNavigate={(screen) => handleNavigate(screen)} userId={user?.uid} />;
       case 'about':
         return <AboutScreen onNavigate={(screen) => handleNavigate(screen)} />;
       default:

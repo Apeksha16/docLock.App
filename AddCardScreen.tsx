@@ -4,14 +4,16 @@ import { Feather, FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/v
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { firestoreService } from './services/firestoreService';
 
 const { width } = Dimensions.get('window');
 
 interface AddCardScreenProps {
     onNavigate: (screen: 'dashboard' | 'friends' | 'profile' | 'my-cards') => void;
+    userId: string;
 }
 
-export default function AddCardScreen({ onNavigate }: AddCardScreenProps) {
+export default function AddCardScreen({ onNavigate, userId }: AddCardScreenProps) {
     // Camera Permission
     const [permission, requestPermission] = useCameraPermissions();
     const [isScanning, setIsScanning] = useState(false);
@@ -23,6 +25,32 @@ export default function AddCardScreen({ onNavigate }: AddCardScreenProps) {
     const [holderName, setHolderName] = useState('');
     const [expiry, setExpiry] = useState('');
     const [cvv, setCvv] = useState('');
+
+    // Real-time Validation State: 'neutral' | 'valid' | 'invalid'
+    const [numValidation, setNumValidation] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
+    const [dateValidation, setDateValidation] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
+
+    const validateLuhnCheck = (num: string) => {
+        const digits = num.replace(/\D/g, '');
+        if (digits.length < 13) return false;
+        let sum = 0;
+        let shouldDouble = false;
+        for (let i = digits.length - 1; i >= 0; i--) {
+            let digit = parseInt(digits.charAt(i));
+            if (shouldDouble) {
+                if ((digit *= 2) > 9) digit -= 9;
+            }
+            sum += digit;
+            shouldDouble = !shouldDouble;
+        }
+        return (sum % 10 === 0);
+    };
+
+    const getBorderColor = (status: 'neutral' | 'valid' | 'invalid') => {
+        if (status === 'valid') return '#22C55E'; // Green
+        if (status === 'invalid') return '#EF4444'; // Red
+        return 'transparent'; // Default handled by style
+    };
 
     const detectCardBrand = (number: string) => {
         const clean = number.replace(/\s+/g, '');
@@ -41,17 +69,167 @@ export default function AddCardScreen({ onNavigate }: AddCardScreenProps) {
         return groups ? groups.join(' ') : clean;
     };
 
+    const handleCardNameChange = (text: string) => {
+        // Max 50, Alphanumeric + Space
+        const clean = text.replace(/[^a-zA-Z0-9 ]/g, '');
+        if (clean.length <= 50) setCardName(clean);
+    };
+
+    const handleHolderNameChange = (text: string) => {
+        // Max 30, Alphabets + Space
+        const clean = text.replace(/[^a-zA-Z ]/g, '');
+        if (clean.length <= 30) setHolderName(clean);
+    };
+
+    const handleCvvChange = (text: string) => {
+        // Numeric only, max 4
+        const clean = text.replace(/\D/g, '');
+        if (clean.length <= 4) setCvv(clean);
+    };
+
+    const handleExpiryChange = (text: string) => {
+        // Handle deletion
+        if (text.length < expiry.length) {
+            setExpiry(text);
+            return;
+        }
+
+        let clean = text.replace(/\D/g, '');
+        if (clean.length > 4) clean = clean.slice(0, 4);
+
+        // Validate Month
+        if (clean.length >= 2) {
+            const month = parseInt(clean.slice(0, 2));
+            if (month === 0 || month > 12) {
+                // Invalid month entered, ignore last char
+                clean = clean.slice(0, 1);
+            }
+        }
+
+        // Auto-slash
+        let formatted = clean;
+        if (clean.length >= 2) {
+            formatted = clean.slice(0, 2) + '/' + clean.slice(2);
+        }
+
+        // Real-time Expiry Logic
+        // Validate when full MM/YY is entered (5 chars)
+        if (formatted.length === 5) {
+            const [expMonth, expYear] = formatted.split('/').map(num => parseInt(num));
+            const now = new Date();
+            const currentYear = parseInt(now.getFullYear().toString().slice(-2)); // e.g. 26
+
+            // Allow years: Current Year - 2 onwards
+            // e.g. If 2026, allow 24, 25, 26, 27...
+            const minYear = currentYear - 2;
+
+            if (expYear >= minYear && expMonth >= 1 && expMonth <= 12) {
+                setDateValidation('valid');
+            } else {
+                setDateValidation('invalid');
+            }
+        } else {
+            setDateValidation('neutral');
+        }
+
+        setExpiry(formatted);
+    };
+
     const handleCardNumberChange = (text: string) => {
         const formatted = formatCardNumber(text);
-        if (formatted.length <= 19) {
+        if (formatted.length <= 23) { // 19 digits + spaces
             setCardNumber(formatted);
+
+            // Real-time Luhn Check
+            const raw = formatted.replace(/\D/g, '');
+            if (raw.length >= 13) {
+                if (validateLuhnCheck(raw)) {
+                    setNumValidation('valid');
+                } else {
+                    setNumValidation('invalid');
+                }
+            } else {
+                setNumValidation('neutral');
+            }
         }
     };
 
-    const handleAddCard = () => {
-        // Here we would validate and save to global state/context/storage
-        console.log("Adding card", { cardType, cardName, cardNumber, holderName, expiry, cvv });
-        onNavigate('my-cards');
+    const validateCard = () => {
+        // Simple Checks
+        if (!cardName.trim()) { Alert.alert('Invalid Input', 'Please enter a card nickname.'); return false; }
+        if (!cardNumber.replace(/\s+/g, '').match(/^\d{13,19}$/)) { Alert.alert('Invalid Card', 'Check card number.'); return false; }
+        if (!holderName.trim()) { Alert.alert('Invalid Input', 'Please enter holder name.'); return false; }
+
+        // Expiry Validation: MM/YY
+        if (!expiry.match(/^(0[1-9]|1[0-2])\/\d{2}$/)) { Alert.alert('Invalid Expiry', 'Use MM/YY format.'); return false; }
+        const [expMonth, expYear] = expiry.split('/').map(num => parseInt(num));
+        const now = new Date();
+        const currentYear = parseInt(now.getFullYear().toString().slice(-2)); // last 2 digits
+        const currentMonth = now.getMonth() + 1;
+
+        // "Year must be >= currentYear - 2" (Allow recent expired cards as per request)
+        const minYear = currentYear - 2;
+        if (expYear < minYear) {
+            Alert.alert('Invalid Expiry', 'Card expired too long ago.');
+            return false;
+        }
+        // If same year as minYear, allow all months (simplest interpretation of "year allowed")
+        // Or strictly: if future, checks month. If past but allowable year, do we care about month? 
+        // User said "year allowed will be upto 2024". 
+        // Let's assume broad year allowance. 
+        // But if year == currentYear, we might want to ensure month is valid? 
+        // Usually, if year < currentYear (but > minYear), it's expired but "allowed".
+        // Submit validation usually checks if it's *valid for use* (future). 
+        // But user constraint overrides this.
+        // Let's just ensure it's not OLDER than minYear.
+        // If same year, month must be >= current month
+        if (expYear === currentYear && expMonth < currentMonth) {
+            Alert.alert('Invalid Expiry', 'Card has expired.');
+            return false;
+        }
+
+        if (!cvv.match(/^\d{3,4}$/)) { Alert.alert('Invalid CVV', 'Check CVV (3-4 digits).'); return false; }
+
+        // Luhn Algorithm
+        const digits = cardNumber.replace(/\D/g, '');
+        let sum = 0;
+        let shouldDouble = false;
+        for (let i = digits.length - 1; i >= 0; i--) {
+            let digit = parseInt(digits.charAt(i));
+            if (shouldDouble) {
+                if ((digit *= 2) > 9) digit -= 9;
+            }
+            sum += digit;
+            shouldDouble = !shouldDouble;
+        }
+        if (sum % 10 !== 0) {
+            Alert.alert('Invalid Card', 'Card number is invalid (Luhn check failed).');
+            return false;
+        }
+
+        return true;
+    };
+
+    const handleAddCard = async () => {
+        if (!validateCard()) return;
+
+        // Passed validation
+        try {
+            await firestoreService.addCard(userId, {
+                cardType,
+                cardName,
+                cardNumber: cardNumber.replace(/\s+/g, ''), // Plaintext passed to service, service encrypts it
+                holderName,
+                expiry,
+                cvv
+            });
+            Alert.alert('Success', 'Card added securely!', [
+                { text: 'OK', onPress: () => onNavigate('my-cards') }
+            ]);
+        } catch (error) {
+            console.error(error);
+            Alert.alert('Error', 'Failed to add card.');
+        }
     };
 
     const startScan = async () => {
@@ -208,17 +386,22 @@ export default function AddCardScreen({ onNavigate }: AddCardScreenProps) {
                             placeholder="e.g., Personal Visa"
                             placeholderTextColor="#94A3B8"
                             value={cardName}
-                            onChangeText={setCardName}
+                            onChangeText={handleCardNameChange}
+                            maxLength={50}
                         />
 
                         <Text style={styles.inputLabel}>Card Number</Text>
                         <TextInput
-                            style={styles.input}
+                            style={[
+                                styles.input,
+                                numValidation !== 'neutral' && { borderWidth: 1, borderColor: getBorderColor(numValidation) }
+                            ]}
                             placeholder="0000 0000 0000 0000"
                             placeholderTextColor="#94A3B8"
                             keyboardType="numeric"
                             value={cardNumber}
                             onChangeText={handleCardNumberChange}
+                            maxLength={23} // 19 digits + spaces
                         />
 
                         <Text style={styles.inputLabel}>Card Holder Name</Text>
@@ -227,18 +410,25 @@ export default function AddCardScreen({ onNavigate }: AddCardScreenProps) {
                             placeholder="YOUR NAME"
                             placeholderTextColor="#94A3B8"
                             value={holderName}
-                            onChangeText={setHolderName}
+                            onChangeText={handleHolderNameChange}
+                            autoCapitalize="characters"
+                            maxLength={30}
                         />
 
                         <View style={styles.row}>
                             <View style={{ flex: 1, marginRight: 16 }}>
                                 <Text style={styles.inputLabel}>Expiry Date</Text>
                                 <TextInput
-                                    style={styles.input}
+                                    style={[
+                                        styles.input,
+                                        dateValidation !== 'neutral' && { borderWidth: 1, borderColor: getBorderColor(dateValidation) }
+                                    ]}
                                     placeholder="MM/YY"
                                     placeholderTextColor="#94A3B8"
                                     value={expiry}
-                                    onChangeText={setExpiry}
+                                    onChangeText={handleExpiryChange}
+                                    keyboardType="numeric"
+                                    maxLength={5}
                                 />
                             </View>
                             <View style={{ flex: 1 }}>
@@ -250,7 +440,8 @@ export default function AddCardScreen({ onNavigate }: AddCardScreenProps) {
                                     keyboardType="numeric"
                                     secureTextEntry
                                     value={cvv}
-                                    onChangeText={setCvv}
+                                    onChangeText={handleCvvChange}
+                                    maxLength={4}
                                 />
                             </View>
                         </View>

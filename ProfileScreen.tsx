@@ -69,7 +69,7 @@ export default function ProfileScreen({ onNavigate, userProfile, appConfig, user
                 // 1. Subtract old image size if exists
                 if (userProfile?.photoSize) {
                     await firestoreService.updateStorageUsage(uid, -userProfile.photoSize);
-                } else if (!userProfile?.photoURL && userProfile?.storageUsed > 0 && userProfile?.storageUsed < 5 * 1024 * 1024) {
+                } else if (userProfile?.photoURL && userProfile?.storageUsed > 0 && userProfile?.storageUsed < 5 * 1024 * 1024) {
                     // Heuristic: If we don't have photoSize but have photoURL (implied by this not being first run if storageUsed > 0), 
                     // and storage indicates likely previous image usage (small enough), we could guess or simpler: just accept the small drift for legacy.
                     // But strictly per requirement: "delete existing once and decrease totalsize with old one".
@@ -126,7 +126,7 @@ export default function ProfileScreen({ onNavigate, userProfile, appConfig, user
             }
 
             // 1. Get Current User for Auth Deletion
-            let currentUser;
+            let currentUser: any = null;
             try {
                 const { getAuth } = await import("firebase/auth");
                 const auth = getAuth();

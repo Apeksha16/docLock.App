@@ -1,13 +1,17 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, TextInput, FlatList, Modal, Image, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, TextInput, FlatList, Modal, Image, Dimensions, ActivityIndicator, Alert } from 'react-native';
 import { Feather, FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as DocumentPicker from 'expo-document-picker';
+import { firestoreService } from './services/firestoreService';
+import { storageService } from './services/storageService';
 
 const { width, height } = Dimensions.get('window');
 
 interface MyDocumentsScreenProps {
     onNavigate: (screen: 'dashboard' | 'friends' | 'profile' | 'my-cards' | 'add-card' | 'my-documents') => void;
+    userId?: string;
 }
 
 interface DocumentItem {
@@ -18,20 +22,25 @@ interface DocumentItem {
     parentId: string | null;
 }
 
-export default function MyDocumentsScreen({ onNavigate }: MyDocumentsScreenProps) {
+export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScreenProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [documents, setDocuments] = useState<DocumentItem[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
     const [folderStack, setFolderStack] = useState<{ id: string, name: string }[]>([]); // Navigation stack
+
+    // UI State
     const [isCreateFolderVisible, setCreateFolderVisible] = useState(false);
     const [newFolderName, setNewFolderName] = useState('');
     const [activeOptionItemId, setActiveOptionItemId] = useState<string | null>(null);
     const [renamingId, setRenamingId] = useState<string | null>(null);
+    const [isCreatingFolder, setIsCreatingFolder] = useState(false); // Loading state
     const [isFabMenuOpen, setIsFabMenuOpen] = useState(false);
 
     // Upload State
     const [isUploadVisible, setUploadVisible] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
     const [uploadDocName, setUploadDocName] = useState('');
-    const [selectedFile, setSelectedFile] = useState<{ name: string, size: string } | null>(null);
+    const [selectedFile, setSelectedFile] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
 
     // File Viewer State
     const [viewingFile, setViewingFile] = useState<DocumentItem | null>(null);
@@ -40,51 +49,82 @@ export default function MyDocumentsScreen({ onNavigate }: MyDocumentsScreenProps
     const [deletingItem, setDeletingItem] = useState<DocumentItem | null>(null);
 
     const currentFolderId = folderStack.length > 0 ? folderStack[folderStack.length - 1].id : null;
-    const currentDocuments = documents.filter(doc => doc.parentId === currentFolderId);
+
+    // Load documents when folder changes (Realtime)
+    useEffect(() => {
+        if (!userId) return;
+
+        setIsLoading(true);
+        const unsubscribe = firestoreService.subscribeToDocuments(userId, currentFolderId, (docs) => {
+            setDocuments(docs as DocumentItem[]);
+            setIsLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, [userId, currentFolderId]);
 
     const initiateDelete = (item: DocumentItem) => {
         setDeletingItem(item);
         setActiveOptionItemId(null);
     };
 
-    const confirmDelete = () => {
-        if (deletingItem) {
-            setDocuments(documents.filter(doc => doc.id !== deletingItem.id));
-            setDeletingItem(null);
-
-            // If we were viewing this file, close the viewer
-            if (viewingFile?.id === deletingItem.id) {
-                setViewingFile(null);
+    const confirmDelete = async () => {
+        if (deletingItem && userId) {
+            try {
+                await firestoreService.deleteDocument(userId, deletingItem.id);
+                // No need to update local state, listener will handle it
+                setDeletingItem(null);
+                if (viewingFile?.id === deletingItem.id) {
+                    setViewingFile(null);
+                }
+            } catch (error) {
+                console.error(error);
+                Alert.alert('Error', 'Failed to delete item.');
             }
         }
     };
 
-    // Existing handleCreateFolder...
+    // Create / Rename Folder
     const handleCreateFolder = () => {
-        if (newFolderName.trim()) {
-            if (renamingId) {
-                // Rename logic
-                setDocuments(documents.map(doc =>
-                    doc.id === renamingId ? { ...doc, name: newFolderName } : doc
-                ));
-                setRenamingId(null);
-            } else {
-                // Create logic
-                const newFolder: DocumentItem = {
-                    id: Date.now().toString(),
-                    type: 'folder',
-                    name: newFolderName,
-                    meta: '0 items',
-                    parentId: currentFolderId
-                };
-                setDocuments([newFolder, ...documents]);
-            }
+        if (newFolderName.trim() && userId) {
+            const nameToUse = newFolderName.trim();
+            const isRename = !!renamingId;
+            const targetId = renamingId;
+
+            // 1. Close UI Immediately
             setNewFolderName('');
+            setRenamingId(null);
             setCreateFolderVisible(false);
+            setIsCreatingFolder(false); // Ensure loading is off
+
+            // 2. Perform Background Operation
+            const bgOperation = async () => {
+                try {
+                    if (isRename && targetId) {
+                        await firestoreService.renameDocument(userId, targetId, nameToUse);
+                    } else {
+                        // Check Nesting Level (Max 5)
+                        if (folderStack.length >= 5) {
+                            Alert.alert('Limit Reached', 'You cannot create folders deeper than 5 levels.');
+                            return;
+                        }
+                        // Check Item Count (Max 10)
+                        if (documents.length >= 10) {
+                            Alert.alert('Limit Reached', 'You can only have up to 10 items in this folder.');
+                            return;
+                        }
+                        await firestoreService.createFolder(userId, nameToUse, currentFolderId);
+                    }
+                } catch (error) {
+                    console.error(error);
+                    Alert.alert('Error', isRename ? 'Failed to rename folder.' : 'Failed to create folder.');
+                }
+            };
+
+            // Run in background
+            bgOperation();
         }
     };
-
-    /* Old handleDelete removed, replaced by initiateDelete and confirmDelete */
 
     const initiateRename = (item: DocumentItem) => {
         setNewFolderName(item.name);
@@ -93,31 +133,99 @@ export default function MyDocumentsScreen({ onNavigate }: MyDocumentsScreenProps
         setCreateFolderVisible(true);
     };
 
-    const handleUpload = () => {
-        setUploadVisible(true);
+    // Helper to close and clear Create Folder Modal
+    const closeCreateFolderModal = () => {
+        if (isCreatingFolder) return;
+        setCreateFolderVisible(false);
+        setNewFolderName('');
+        setRenamingId(null);
     };
 
-    const confirmUpload = () => {
-        const fileName = uploadDocName.trim() || selectedFile?.name || 'New Document.pdf';
-
-        const newFile: DocumentItem = {
-            id: Date.now().toString(),
-            type: 'file',
-            name: fileName,
-            meta: selectedFile ? `${selectedFile.size} • Jan 10, 2026` : '2.4 MB • Jan 10, 2026', // Mock data
-            parentId: currentFolderId
-        };
-        setDocuments([newFile, ...documents]);
-
-        // Reset
+    // Helper to close and clear Upload Modal
+    const closeUploadModal = () => {
+        if (isUploading) return;
         setUploadVisible(false);
         setUploadDocName('');
         setSelectedFile(null);
     };
 
-    const pickDocument = () => {
-        // Mock file selection
-        setSelectedFile({ name: 'project_brief.pdf', size: '2.4 MB' });
+
+
+    const handleUpload = () => {
+        setUploadVisible(true);
+    };
+
+    const pickDocument = async () => {
+        try {
+            const result = await DocumentPicker.getDocumentAsync({
+                type: '*/*', // Allow all types
+                copyToCacheDirectory: true,
+            });
+
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+                const asset = result.assets[0];
+                // Validate size (5MB limit)
+                if (asset.size && asset.size > 5 * 1024 * 1024) {
+                    Alert.alert('File too large', 'Please select a file smaller than 5MB.');
+                    return;
+                }
+                setSelectedFile(asset);
+                setUploadDocName(asset.name);
+            }
+        } catch (error) {
+            console.error(error);
+            Alert.alert('Error', 'Failed to pick document.');
+        }
+    };
+
+    const confirmUpload = async () => {
+        if (!userId || !selectedFile) return;
+
+        // Check Item Count (Max 10)
+        if (documents.length >= 10) {
+            Alert.alert('Limit Reached', 'You can only have up to 10 items in this folder.');
+            return;
+        }
+
+        const nameToUse = uploadDocName.trim() || selectedFile.name;
+        setIsUploading(true);
+
+        try {
+            // 1. Upload to Storage
+            const { downloadURL, size } = await storageService.uploadFile(userId, selectedFile.uri, selectedFile.name);
+
+            // 2. Save Metadata to Firestore
+            const sizeMB = (size / (1024 * 1024)).toFixed(2) + ' MB';
+            const date = new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+
+            // Pass metadata to services
+            // Note: firestoreService.saveDocumentMetadata needs to be updated to accept object or correct args
+            // Earlier it was: saveDocumentMetadata(userId, name, size, downloadUrl, parentId)
+            // Let's assume we update usage match definition: 
+            // saveDocumentMetadata(userId, { name, type, size, meta, downloadURL, parentId })
+
+            // Checking definition from previous turn: 
+            // saveDocumentMetadata(userId: string, data: DocumentMetadata)
+
+            await firestoreService.saveDocumentMetadata(userId, {
+                name: nameToUse,
+                type: 'file',
+                size: size,
+                meta: `${sizeMB} • ${date}`,
+                downloadURL: downloadURL,
+                parentId: currentFolderId
+            });
+
+            setUploadVisible(false);
+            setUploadDocName('');
+            setSelectedFile(null);
+
+        } catch (error) {
+            console.error(error);
+            Alert.alert('Upload Failed', 'There was an error uploading your file.');
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     const navigateToFolder = (folder: DocumentItem) => {
@@ -228,18 +336,7 @@ export default function MyDocumentsScreen({ onNavigate }: MyDocumentsScreenProps
         <View style={styles.container}>
             <StatusBar barStyle="dark-content" />
 
-            {/* Global Overlay for FAB - Close on outside click */}
-            {isFabMenuOpen && (
-                <TouchableOpacity
-                    style={styles.overlay}
-                    activeOpacity={1}
-                    onPress={() => setIsFabMenuOpen(false)}
-                />
-            )}
-
             <SafeAreaView style={{ flex: 1 }}>
-
-
 
                 <View style={styles.header}>
                     <TouchableOpacity onPress={navigateUp} style={styles.backButton}>
@@ -262,31 +359,38 @@ export default function MyDocumentsScreen({ onNavigate }: MyDocumentsScreenProps
                 </View>
 
                 {/* Breadcrumb / Section Title */}
-                <View style={styles.sectionHeader}>
-                    <View style={styles.breadcrumb}>
-                        <TouchableOpacity onPress={() => navigateToBreadcrumb(-1)}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                <Ionicons name="home-outline" size={14} color="#64748B" />
-                                <Text style={styles.breadcrumbText}>HOME</Text>
-                            </View>
-                        </TouchableOpacity>
+                {/* SHOW BREADCRUMB ONLY IF NOT EMPTY ROOT or IF NAVIGATED */}
+                {(documents.length > 0 || currentFolderId !== null) && (
+                    <View style={styles.sectionHeader}>
+                        <View style={styles.breadcrumb}>
+                            <TouchableOpacity onPress={() => navigateToBreadcrumb(-1)}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                    <Ionicons name="home-outline" size={14} color="#64748B" />
+                                    <Text style={styles.breadcrumbText}>HOME</Text>
+                                </View>
+                            </TouchableOpacity>
 
-                        {folderStack.map((folder, index) => (
-                            <React.Fragment key={folder.id}>
-                                <Feather name="chevron-right" size={12} color="#CBD5E1" />
-                                <TouchableOpacity onPress={() => navigateToBreadcrumb(index)}>
-                                    <Text style={index === folderStack.length - 1 ? styles.breadcrumbActive : styles.breadcrumbText}>
-                                        {folder.name}
-                                    </Text>
-                                </TouchableOpacity>
-                            </React.Fragment>
-                        ))}
+                            {folderStack.map((folder, index) => (
+                                <React.Fragment key={folder.id}>
+                                    <Feather name="chevron-right" size={12} color="#CBD5E1" />
+                                    <TouchableOpacity onPress={() => navigateToBreadcrumb(index)}>
+                                        <Text style={index === folderStack.length - 1 ? styles.breadcrumbActive : styles.breadcrumbText}>
+                                            {folder.name}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </React.Fragment>
+                            ))}
+                        </View>
                     </View>
-                </View>
+                )}
 
 
                 {/* Content */}
-                {currentDocuments.length === 0 ? (
+                {isLoading ? (
+                    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                        <ActivityIndicator size="large" color="#F97316" />
+                    </View>
+                ) : documents.length === 0 ? (
                     <View style={styles.emptyStateContainer}>
                         {/* Placeholder Icon */}
                         <View style={styles.emptyIconContainer}>
@@ -304,7 +408,7 @@ export default function MyDocumentsScreen({ onNavigate }: MyDocumentsScreenProps
                             Start by uploading your first document or creating a folder to organize your files
                         </Text>
 
-                        <View style={styles.actionButtonsRow}>
+                        <View style={styles.actionButtonsColumn}>
                             <TouchableOpacity
                                 style={styles.actionButtonSecondary}
                                 onPress={() => setCreateFolderVisible(true)}
@@ -324,7 +428,7 @@ export default function MyDocumentsScreen({ onNavigate }: MyDocumentsScreenProps
                     </View>
                 ) : (
                     <FlatList
-                        data={currentDocuments}
+                        data={documents}
                         renderItem={renderDocumentItem}
                         keyExtractor={item => item.id}
                         contentContainerStyle={styles.listContent}
@@ -332,294 +436,313 @@ export default function MyDocumentsScreen({ onNavigate }: MyDocumentsScreenProps
                     />
                 )}
 
-                {/* Bottom Navigation Bar */}
-                {/* Reusing the same fixed bottom nav logic but adapting zIndex */}
-                <View style={styles.bottomNavContainer}>
-                    {currentDocuments.length > 0 && (
-                        <View style={styles.bottomNavWrapper}>
-                            {isFabMenuOpen && (
-                                <>
-
-
-                                    <View style={styles.fabMenuContainer}>
-                                        <TouchableOpacity
-                                            style={styles.fabMenuItemSecondary}
-                                            onPress={() => {
-                                                setIsFabMenuOpen(false);
-                                                setCreateFolderVisible(true);
-                                            }}
-                                        >
-                                            <Feather name="folder" size={20} color="white" />
-                                            <Text style={styles.fabMenuItemText}>Create Folder</Text>
-                                        </TouchableOpacity>
-
-                                        <TouchableOpacity
-                                            style={styles.fabMenuItemPrimary}
-                                            onPress={() => {
-                                                setIsFabMenuOpen(false);
-                                                handleUpload();
-                                            }}
-                                        >
-                                            <Feather name="upload" size={20} color="white" />
-                                            <Text style={styles.fabMenuItemText}>Upload Document</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                </>
-                            )}
-
-                            <TouchableOpacity
-                                style={[styles.fabButton, isFabMenuOpen && styles.fabButtonOpen]}
-                                onPress={() => setIsFabMenuOpen(!isFabMenuOpen)}
-                                activeOpacity={0.8}
-                            >
-                                <Ionicons
-                                    name="add"
-                                    size={32}
-                                    color="white"
-                                    style={{ transform: [{ rotate: isFabMenuOpen ? '45deg' : '0deg' }] }}
-                                />
-                            </TouchableOpacity>
-                        </View>
-                    )}
-
-                    {/* Navigation Pill */}
-                    <View style={styles.pillNav}>
-                        <TouchableOpacity style={styles.navItemActive}>
-                            <Ionicons name="home-outline" size={20} color="#FFFFFF" />
-                            <Text style={styles.navTextActive}>Home</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('friends')}>
-                            <Ionicons name="people-outline" size={22} color="#94A3B8" />
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('profile')}>
-                            <Ionicons name="person-outline" size={22} color="#94A3B8" />
-                        </TouchableOpacity>
-                    </View>
-                </View>
-
-                {/* Create Folder Modal */}
-                <Modal
-                    animationType="fade"
-                    transparent={true}
-                    visible={isCreateFolderVisible}
-                    onRequestClose={() => setCreateFolderVisible(false)}
-                >
-                    <View style={styles.modalOverlay}>
-                        <View style={styles.bottomSheet}>
-                            <View style={styles.dragHandle} />
-
-                            <View style={styles.folderIconContainer}>
-                                <Feather name="folder" size={24} color="#F59E0B" />
-                            </View>
-
-                            <Text style={styles.modalTitle}>{renamingId ? 'Rename Folder' : 'New Folder'}</Text>
-
-                            <TextInput
-                                style={[
-                                    styles.modalInput,
-                                    newFolderName.length > 0 && styles.modalInputActive
-                                ]}
-                                placeholder="Folder name"
-                                placeholderTextColor="#94A3B8"
-                                value={newFolderName}
-                                onChangeText={setNewFolderName}
-                                autoFocus
-                            />
-
-                            <View style={styles.modalButtons}>
-                                <TouchableOpacity
-                                    style={styles.modalCancelButton}
-                                    onPress={() => {
-                                        setCreateFolderVisible(false);
-                                        setRenamingId(null);
-                                        setNewFolderName('');
-                                    }}
-                                >
-                                    <Text style={styles.modalCancelText}>Cancel</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={[
-                                        styles.modalCreateButton,
-                                        { backgroundColor: newFolderName.trim() ? '#F97316' : '#FED7AA' } // Matched colors
-                                    ]}
-                                    onPress={handleCreateFolder}
-                                    disabled={!newFolderName.trim()}
-                                >
-                                    <Text style={styles.modalCreateText}>{renamingId ? 'Save Changes' : 'Create Folder'}</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    </View>
-                </Modal>
-
-                {/* Upload Document Modal */}
-                <Modal
-                    animationType="fade"
-                    transparent={true}
-                    visible={isUploadVisible}
-                    onRequestClose={() => setUploadVisible(false)}
-                >
-                    <View style={styles.modalOverlay}>
-                        <View style={styles.bottomSheet}>
-                            <View style={styles.dragHandle} />
-
-                            <View style={[styles.folderIconContainer, { backgroundColor: '#FFEDD5' }]}>
-                                <Feather name="upload" size={24} color="#F97316" />
-                            </View>
-
-                            <Text style={styles.modalTitle}>Upload File</Text>
-
-                            <TouchableOpacity style={styles.uploadDropZone} onPress={pickDocument}>
-                                {selectedFile ? (
-                                    <View style={{ alignItems: 'center' }}>
-                                        <Feather name="file-text" size={32} color="#F97316" />
-                                        <Text style={styles.uploadMainText}>{selectedFile.name}</Text>
-                                        <Text style={styles.uploadSubText}>{selectedFile.size}</Text>
-                                    </View>
-                                ) : (
-                                    <View style={{ alignItems: 'center' }}>
-                                        <Feather name="upload-cloud" size={32} color="#3B82F6" style={{ marginBottom: 12 }} />
-                                        <Text style={styles.uploadMainText}>Tap to select file</Text>
-                                        <Text style={styles.uploadSubText}>PDF (Max 5MB), Images (Max 2MB)</Text>
-                                    </View>
-                                )}
-                            </TouchableOpacity>
-
-                            <TextInput
-                                style={styles.modalInput}
-                                placeholder="Document name (optional)"
-                                placeholderTextColor="#94A3B8"
-                                value={uploadDocName}
-                                onChangeText={setUploadDocName}
-                            />
-
-                            <View style={styles.modalButtons}>
-                                <TouchableOpacity
-                                    style={styles.modalCancelButton}
-                                    onPress={() => setUploadVisible(false)}
-                                >
-                                    <Text style={styles.modalCancelText}>Cancel</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={[
-                                        styles.modalCreateButton,
-                                        { backgroundColor: selectedFile ? '#F97316' : '#FED7AA' }
-                                    ]}
-                                    onPress={confirmUpload}
-                                    disabled={!selectedFile}
-                                >
-                                    <Text style={styles.modalCreateText}>Upload File</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    </View>
-                </Modal>
-
-                {/* File Viewer Modal */}
-                <Modal
-                    animationType="slide"
-                    transparent={false}
-                    visible={!!viewingFile}
-                    onRequestClose={() => setViewingFile(null)}
-                >
-                    <View style={styles.viewerContainer}>
-                        <SafeAreaView style={{ flex: 1 }}>
-                            {/* Viewer Header */}
-                            <View style={styles.viewerHeader}>
-                                <TouchableOpacity
-                                    onPress={() => setViewingFile(null)}
-                                    style={styles.viewerBackBtn}
-                                    hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-                                >
-                                    <Feather name="chevron-left" size={32} color="white" />
-                                </TouchableOpacity>
-                                <View style={{ alignItems: 'center' }}>
-                                    <Text style={styles.viewerTitle}>{viewingFile?.name}</Text>
-                                    <Text style={styles.viewerDate}>{viewingFile?.meta.split('•')[1]?.trim() || 'Jan 10, 2026'}</Text>
-                                </View>
-                                <View style={{ width: 32 }} />
-                            </View>
-
-                            {/* Viewer Content */}
-                            <View style={styles.viewerContent}>
-                                {/* Placeholder for the actual file content */}
-                                <View style={styles.filePreviewPlaceholder}>
-                                    <Feather name="image" size={120} color="#EA580C" />
-                                </View>
-                            </View>
-
-                            {/* Viewer Footer actions */}
-                            <View style={styles.viewerFooter}>
-                                <TouchableOpacity style={styles.viewerActionBtn}>
-                                    <View style={styles.viewerActionIcon}>
-                                        <Feather name="share-2" size={20} color="white" />
-                                    </View>
-                                    <Text style={styles.viewerActionText}>SHARE</Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity style={styles.viewerActionBtn}>
-                                    <View style={styles.viewerActionIcon}>
-                                        <Feather name="download" size={20} color="white" />
-                                    </View>
-                                    <Text style={styles.viewerActionText}>SAVE</Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    style={styles.viewerActionBtn}
-                                    onPress={() => {
-                                        if (viewingFile) initiateDelete(viewingFile);
-                                    }}
-                                >
-                                    <View style={[styles.viewerActionIcon, { backgroundColor: '#EF4444' }]}>
-                                        <Feather name="trash-2" size={20} color="white" />
-                                    </View>
-                                    <Text style={styles.viewerActionText}>DELETE</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </SafeAreaView>
-                    </View>
-                </Modal>
-
-                {/* Delete Confirmation Modal */}
-                <Modal
-                    animationType="fade"
-                    transparent={true}
-                    visible={!!deletingItem}
-                    onRequestClose={() => setDeletingItem(null)}
-                >
-                    <View style={styles.modalOverlay}>
-                        <View style={styles.bottomSheet}>
-                            <View style={styles.dragHandle} />
-
-                            <View style={[styles.folderIconContainer, { backgroundColor: '#FEE2E2' }]}>
-                                <Feather name="trash-2" size={24} color="#EF4444" />
-                            </View>
-
-                            <Text style={styles.modalTitle}>Delete {deletingItem?.type === 'folder' ? 'Folder' : 'File'}?</Text>
-                            <Text style={styles.deleteConfirmText}>
-                                Are you sure you want to delete "{deletingItem?.name}"? This action cannot be undone.
-                            </Text>
-
-                            <View style={styles.modalButtons}>
-                                <TouchableOpacity
-                                    style={styles.modalCancelButton}
-                                    onPress={() => setDeletingItem(null)}
-                                >
-                                    <Text style={styles.modalCancelText}>Cancel</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={[styles.modalCreateButton, { backgroundColor: '#EF4444' }]}
-                                    onPress={confirmDelete}
-                                >
-                                    <Text style={styles.modalCreateText}>Delete</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    </View>
-                </Modal>
 
             </SafeAreaView>
-        </View>
+
+            {/* Global Overlay for FAB - Close on outside click */}
+            {
+                isFabMenuOpen && (
+                    <TouchableOpacity
+                        style={styles.overlay}
+                        activeOpacity={1}
+                        onPress={() => setIsFabMenuOpen(false)}
+                    />
+                )
+            }
+
+            {/* Bottom Navigation Bar */}
+            {/* Moved outside SafeAreaView to handle zIndex correctly against Overlay */}
+            <View style={styles.bottomNavContainer}>
+                {documents.length > 0 && (
+                    <View style={styles.bottomNavWrapper}>
+                        {isFabMenuOpen && (
+                            <>
+                                <View style={styles.fabMenuContainer}>
+                                    <TouchableOpacity
+                                        style={styles.fabMenuItemSecondary}
+                                        onPress={() => {
+                                            setIsFabMenuOpen(false);
+                                            setCreateFolderVisible(true);
+                                        }}
+                                    >
+                                        <Feather name="folder" size={20} color="white" />
+                                        <Text style={styles.fabMenuItemText}>Create Folder</Text>
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        style={styles.fabMenuItemPrimary}
+                                        onPress={() => {
+                                            setIsFabMenuOpen(false);
+                                            handleUpload();
+                                        }}
+                                    >
+                                        <Feather name="upload" size={20} color="white" />
+                                        <Text style={styles.fabMenuItemText}>Upload Document</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </>
+                        )}
+
+                        <TouchableOpacity
+                            style={[styles.fabButton, isFabMenuOpen && styles.fabButtonOpen]}
+                            onPress={() => setIsFabMenuOpen(!isFabMenuOpen)}
+                            activeOpacity={0.8}
+                        >
+                            <Ionicons
+                                name="add"
+                                size={32}
+                                color="white"
+                                style={{ transform: [{ rotate: isFabMenuOpen ? '45deg' : '0deg' }] }}
+                            />
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                {/* Navigation Pill */}
+                <View style={styles.pillNav}>
+                    <TouchableOpacity style={styles.navItemActive}>
+                        <Ionicons name="home-outline" size={20} color="#FFFFFF" />
+                        <Text style={styles.navTextActive}>Home</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('friends')}>
+                        <Ionicons name="people-outline" size={22} color="#94A3B8" />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('profile')}>
+                        <Ionicons name="person-outline" size={22} color="#94A3B8" />
+                    </TouchableOpacity>
+                </View>
+            </View>
+
+            {/* Create Folder Modal */}
+            <Modal
+                animationType="fade"
+                transparent={true}
+                visible={isCreateFolderVisible}
+                onRequestClose={closeCreateFolderModal}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.bottomSheet}>
+                        <View style={styles.dragHandle} />
+
+                        <View style={styles.folderIconContainer}>
+                            <Feather name="folder" size={24} color="#F59E0B" />
+                        </View>
+
+                        <Text style={styles.modalTitle}>{renamingId ? 'Rename Folder' : 'New Folder'}</Text>
+
+                        <TextInput
+                            style={[
+                                styles.modalInput,
+                                newFolderName.length > 0 && styles.modalInputActive
+                            ]}
+                            placeholder="Folder name"
+                            placeholderTextColor="#94A3B8"
+                            value={newFolderName}
+                            onChangeText={setNewFolderName}
+                            autoFocus
+                            editable={!isCreatingFolder} // Disable input while loading
+                        />
+
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity
+                                style={styles.modalCancelButton}
+                                onPress={closeCreateFolderModal}
+                                disabled={isCreatingFolder}
+                            >
+                                <Text style={styles.modalCancelText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[
+                                    styles.modalCreateButton,
+                                    { backgroundColor: newFolderName.trim() ? '#F97316' : '#FED7AA' } // Matched colors
+                                ]}
+                                onPress={handleCreateFolder}
+                                disabled={!newFolderName.trim() || isCreatingFolder}
+                            >
+                                {isCreatingFolder ? (
+                                    <ActivityIndicator size="small" color="white" />
+                                ) : (
+                                    <Text style={styles.modalCreateText}>{renamingId ? 'Save Changes' : 'Create Folder'}</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Upload Document Modal */}
+            <Modal
+                animationType="fade"
+                transparent={true}
+                visible={isUploadVisible}
+                onRequestClose={() => setUploadVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.bottomSheet}>
+                        <View style={styles.dragHandle} />
+
+                        <View style={[styles.folderIconContainer, { backgroundColor: '#FFEDD5' }]}>
+                            <Feather name="upload" size={24} color="#F97316" />
+                        </View>
+
+                        <Text style={styles.modalTitle}>Upload File</Text>
+
+                        <TouchableOpacity style={styles.uploadDropZone} onPress={pickDocument}>
+                            {selectedFile ? (
+                                <View style={{ alignItems: 'center' }}>
+                                    <Feather name="file-text" size={32} color="#F97316" />
+                                    <Text style={styles.uploadMainText}>{selectedFile.name}</Text>
+                                    <Text style={styles.uploadSubText}>
+                                        {selectedFile.size ? (selectedFile.size / (1024 * 1024)).toFixed(2) + ' MB' : 'Unknown Size'}
+                                    </Text>
+                                </View>
+                            ) : (
+                                <View style={{ alignItems: 'center' }}>
+                                    <Feather name="upload-cloud" size={32} color="#3B82F6" style={{ marginBottom: 12 }} />
+                                    <Text style={styles.uploadMainText}>Tap to select file</Text>
+                                    <Text style={styles.uploadSubText}>PDF (Max 5MB), Images (Max 2MB)</Text>
+                                </View>
+                            )}
+                        </TouchableOpacity>
+
+                        <TextInput
+                            style={styles.modalInput}
+                            placeholder="Document name (optional)"
+                            placeholderTextColor="#94A3B8"
+                            value={uploadDocName}
+                            onChangeText={setUploadDocName}
+                        />
+
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity
+                                style={styles.modalCancelButton}
+                                onPress={closeUploadModal}
+                                disabled={isUploading}
+                            >
+                                <Text style={styles.modalCancelText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[
+                                    styles.modalCreateButton,
+                                    { backgroundColor: selectedFile ? '#F97316' : '#FED7AA' }
+                                ]}
+                                onPress={confirmUpload}
+                                disabled={!selectedFile || isUploading}
+                            >
+                                {isUploading ? (
+                                    <ActivityIndicator size="small" color="white" />
+                                ) : (
+                                    <Text style={styles.modalCreateText}>Upload File</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* File Viewer Modal */}
+            <Modal
+                animationType="slide"
+                transparent={false}
+                visible={!!viewingFile}
+                onRequestClose={() => setViewingFile(null)}
+            >
+                <View style={styles.viewerContainer}>
+                    <SafeAreaView style={{ flex: 1 }}>
+                        {/* Viewer Header */}
+                        <View style={styles.viewerHeader}>
+                            <TouchableOpacity
+                                onPress={() => setViewingFile(null)}
+                                style={styles.viewerBackBtn}
+                                hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+                            >
+                                <Feather name="chevron-left" size={32} color="white" />
+                            </TouchableOpacity>
+                            <View style={{ alignItems: 'center' }}>
+                                <Text style={styles.viewerTitle}>{viewingFile?.name}</Text>
+                                <Text style={styles.viewerDate}>{viewingFile?.meta.split('•')[1]?.trim() || 'Jan 10, 2026'}</Text>
+                            </View>
+                            <View style={{ width: 32 }} />
+                        </View>
+
+                        {/* Viewer Content */}
+                        <View style={styles.viewerContent}>
+                            {/* Placeholder for the actual file content */}
+                            <View style={styles.filePreviewPlaceholder}>
+                                <Feather name="image" size={120} color="#EA580C" />
+                            </View>
+                        </View>
+
+                        {/* Viewer Footer actions */}
+                        <View style={styles.viewerFooter}>
+                            <TouchableOpacity style={styles.viewerActionBtn}>
+                                <View style={styles.viewerActionIcon}>
+                                    <Feather name="share-2" size={20} color="white" />
+                                </View>
+                                <Text style={styles.viewerActionText}>SHARE</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={styles.viewerActionBtn}>
+                                <View style={styles.viewerActionIcon}>
+                                    <Feather name="download" size={20} color="white" />
+                                </View>
+                                <Text style={styles.viewerActionText}>SAVE</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.viewerActionBtn}
+                                onPress={() => {
+                                    if (viewingFile) initiateDelete(viewingFile);
+                                }}
+                            >
+                                <View style={[styles.viewerActionIcon, { backgroundColor: '#EF4444' }]}>
+                                    <Feather name="trash-2" size={20} color="white" />
+                                </View>
+                                <Text style={styles.viewerActionText}>DELETE</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </SafeAreaView>
+                </View>
+            </Modal >
+
+            {/* Delete Confirmation Modal */}
+            <Modal
+                animationType="fade"
+                transparent={true}
+                visible={!!deletingItem}
+                onRequestClose={() => setDeletingItem(null)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.bottomSheet}>
+                        <View style={styles.dragHandle} />
+
+                        <View style={[styles.folderIconContainer, { backgroundColor: '#FEE2E2' }]}>
+                            <Feather name="trash-2" size={24} color="#EF4444" />
+                        </View>
+
+                        <Text style={styles.modalTitle}>Delete {deletingItem?.type === 'folder' ? 'Folder' : 'File'}?</Text>
+                        <Text style={styles.deleteConfirmText}>
+                            Are you sure you want to delete "{deletingItem?.name}"? This action cannot be undone.
+                        </Text>
+
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity
+                                style={styles.modalCancelButton}
+                                onPress={() => setDeletingItem(null)}
+                            >
+                                <Text style={styles.modalCancelText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.modalCreateButton, { backgroundColor: '#EF4444' }]}
+                                onPress={confirmDelete}
+                            >
+                                <Text style={styles.modalCreateText}>Delete</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+        </View >
     );
 }
 
@@ -749,13 +872,17 @@ const styles = StyleSheet.create({
         lineHeight: 22,
         marginBottom: 32,
     },
-    actionButtonsRow: {
-        flexDirection: 'row',
+    actionButtonsColumn: {
+        flexDirection: 'column',
         gap: 16,
+        width: '100%',
+        maxWidth: 280,
+        zIndex: 100, // Ensure clickable
     },
     actionButtonSecondary: {
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'center',
         backgroundColor: '#475569',
         paddingVertical: 14,
         paddingHorizontal: 20,
@@ -769,6 +896,7 @@ const styles = StyleSheet.create({
     actionButtonPrimary: {
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'center',
         backgroundColor: '#F97316', // Orange 500
         paddingVertical: 14,
         paddingHorizontal: 24,

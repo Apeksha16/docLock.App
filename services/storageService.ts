@@ -41,6 +41,45 @@ export const storageService = {
     },
 
     /**
+     * Upload a document to Firebase Storage
+     * @param userId User ID
+     * @param uri Local file URI
+     * @param fileName File name with extension
+     * @returns Object containing downloadURL and size in bytes
+     */
+    uploadFile: async (userId: string, uri: string, fileName: string): Promise<{ downloadURL: string, size: number }> => {
+        try {
+            loggerService.logRequest('storageService.uploadFile', { userId, fileName });
+
+            const response = await fetch(uri);
+            const blob = await response.blob();
+            const size = blob.size;
+
+            // Validate size (e.g. 5MB limit for docs)
+            if (size > 5 * 1024 * 1024) {
+                throw new Error("File size exceeds 5MB limit.");
+            }
+
+            // Path: users/{userId}/docs/{fileName}
+            // Use timestamp to avoid name collisions or overwrites if desired
+            const uniqueName = `${Date.now()}_${fileName}`;
+            const storageRef = ref(storage, `users/${userId}/docs/${uniqueName}`);
+
+            // Upload
+            await uploadBytes(storageRef, blob);
+
+            // Get URL
+            const downloadURL = await getDownloadURL(storageRef);
+
+            loggerService.logResponse('storageService.uploadFile', { success: true, size });
+            return { downloadURL, size };
+        } catch (error) {
+            loggerService.logApiError('storageService.uploadFile', error);
+            throw error;
+        }
+    },
+
+    /**
      * Delete profile image from Firebase Storage
      * @param userId User ID
      */
