@@ -44,6 +44,21 @@ const updateParentMetaCount = async (userId: string, parentId: string | null, in
     }
 };
 
+// Standalone Notification Helper
+const addNotificationHelper = async (userId: string, notification: { title: string, message: string, type: 'qr' | 'system' | 'alert' }) => {
+    try {
+        const { addDoc, collection } = await import("firebase/firestore");
+        const notifRef = collection(db, "users", userId, "notifications");
+        await addDoc(notifRef, {
+            ...notification,
+            read: false,
+            createdAt: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error("Failed to add notification", error);
+    }
+};
+
 export const firestoreService = {
     /**
      * Save or update user profile data
@@ -617,7 +632,7 @@ export const firestoreService = {
             await batch.commit();
 
             // Notify
-            await firestoreService.addNotification(userId, {
+            await addNotificationHelper(userId, {
                 title: 'New QR Created',
                 message: `Secure QR "${qrData.label}" has been created with ${qrData.filesCount} files.`,
                 type: 'qr'
@@ -666,7 +681,7 @@ export const firestoreService = {
             loggerService.logResponse('firestoreService.updateSecureQR', { success: true });
 
             // Notify
-            await firestoreService.addNotification(userId, {
+            await addNotificationHelper(userId, {
                 title: 'Secure QR Updated',
                 message: 'A secure QR code and its linked documents have been updated.',
                 type: 'qr'
@@ -701,7 +716,7 @@ export const firestoreService = {
             loggerService.logResponse('firestoreService.deleteSecureQR', { success: true });
 
             // Notify
-            await firestoreService.addNotification(userId, {
+            await addNotificationHelper(userId, {
                 title: 'Secure QR Deleted',
                 message: 'A secure QR code has been permanently removed.',
                 type: 'qr'
@@ -716,18 +731,5 @@ export const firestoreService = {
     /**
      * Add Notification
      */
-    addNotification: async (userId: string, notification: { title: string, message: string, type: 'qr' | 'system' | 'alert' }) => {
-        try {
-            const { addDoc, collection } = await import("firebase/firestore");
-            const notifRef = collection(db, "users", userId, "notifications");
-            await addDoc(notifRef, {
-                ...notification,
-                read: false,
-                createdAt: new Date().toISOString()
-            });
-        } catch (error) {
-            // Non-blocking error logging
-            console.error("Failed to add notification", error);
-        }
-    }
+    addNotification: addNotificationHelper
 };

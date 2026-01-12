@@ -117,6 +117,7 @@ export default function SecureQRScreen({ onNavigate, userId }: SecureQRScreenPro
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [qrToDelete, setQrToDelete] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
+    const [saving, setSaving] = useState(false);
 
     const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
     const [label, setLabel] = useState('');
@@ -184,6 +185,7 @@ export default function SecureQRScreen({ onNavigate, userId }: SecureQRScreenPro
         if (!label || selectedDocs.length === 0) return;
 
         try {
+            setSaving(true);
             if (editingQR) {
                 // Update
                 await firestoreService.updateSecureQR(userId, editingQR.id, {
@@ -208,6 +210,8 @@ export default function SecureQRScreen({ onNavigate, userId }: SecureQRScreenPro
         } catch (error) {
             console.error("Failed to save QR", error);
             Alert.alert("Error", "Failed to save Secure QR.");
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -373,11 +377,15 @@ export default function SecureQRScreen({ onNavigate, userId }: SecureQRScreenPro
                                 { backgroundColor: (label && selectedDocs.length > 0) ? '#F97316' : '#FBAC78' }
                             ]}
                             onPress={handleSaveQR}
-                            disabled={!(label && selectedDocs.length > 0)}
+                            disabled={!(label && selectedDocs.length > 0) || saving}
                         >
-                            <Text style={styles.generateButtonText}>
-                                {editingQR ? 'Update Secure QR' : 'Generate Secure QR'}
-                            </Text>
+                            {saving ? (
+                                <ActivityIndicator color="white" />
+                            ) : (
+                                <Text style={styles.generateButtonText}>
+                                    {editingQR ? 'Update Secure QR' : 'Generate Secure QR'}
+                                </Text>
+                            )}
                         </TouchableOpacity>
                     </View>
                 </View>
