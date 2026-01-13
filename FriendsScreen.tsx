@@ -761,14 +761,14 @@ const styles = StyleSheet.create({
     // FAB Styles
     fabContainer: {
         position: 'absolute',
-        bottom: 30, // Adjust based on tab bar height if exists, or just bottom
+        bottom: 110, // Raised to clear BottomNavBar
         alignSelf: 'center',
-        zIndex: 100,
+        zIndex: 200,
     },
     fabButton: {
-        width: 64,
-        height: 64,
-        borderRadius: 24, // Squircle shape
+        width: 56,
+        height: 56,
+        borderRadius: 20, // Squircle shape
         backgroundColor: '#F9A828', // Pink to match theme
         justifyContent: 'center',
         alignItems: 'center',
