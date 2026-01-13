@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Dimensions, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Dimensions, ActivityIndicator, Alert, TextInput } from 'react-native';
 import { Feather, FontAwesome5, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,6 +17,7 @@ interface MyCardsScreenProps {
 export default function MyCardsScreen({ onNavigate, userId }: MyCardsScreenProps) {
     const [cards, setCards] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
         fetchCards();
@@ -126,8 +127,14 @@ export default function MyCardsScreen({ onNavigate, userId }: MyCardsScreenProps
     };
 
     const userPlaceholderName = "USER NAME"; // Fallback
-    const debitCards = cards.filter(c => c.cardType === 'debit' || !c.cardType);
-    const creditCards = cards.filter(c => c.cardType === 'credit');
+
+    const filteredCards = cards.filter(c =>
+        (c.cardName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (c.holderName || '').toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    const debitCards = filteredCards.filter(c => c.cardType === 'debit' || !c.cardType);
+    const creditCards = filteredCards.filter(c => c.cardType === 'credit');
 
     return (
         <View style={styles.container}>
@@ -149,9 +156,6 @@ export default function MyCardsScreen({ onNavigate, userId }: MyCardsScreenProps
                         <Text style={styles.headerSubtitle}>Total {cards.length} cards</Text>
                     </View>
 
-                    <TouchableOpacity style={styles.addButton} onPress={() => onNavigate('add-card')}>
-                        <Feather name="plus" size={24} color="#FFF" />
-                    </TouchableOpacity>
                 </View>
 
                 {/* Tip Banner */}
@@ -166,6 +170,17 @@ export default function MyCardsScreen({ onNavigate, userId }: MyCardsScreenProps
                     </View>
                 ) : (
                     <ScrollView style={styles.contentScroll} showsVerticalScrollIndicator={false}>
+                        {/* Search Bar */}
+                        <View style={styles.searchContainer}>
+                            <Feather name="search" size={20} color="#94A3B8" />
+                            <TextInput
+                                style={styles.searchInput}
+                                placeholder="Search Cards..."
+                                placeholderTextColor="#94A3B8"
+                                value={searchQuery}
+                                onChangeText={setSearchQuery}
+                            />
+                        </View>
 
                         {/* Debit Cards Section */}
                         <View style={styles.sectionHeader}>
@@ -209,7 +224,18 @@ export default function MyCardsScreen({ onNavigate, userId }: MyCardsScreenProps
 
                 {/* Bottom Navigation Bar */}
                 {/* Bottom Navigation Bar */}
+                {/* Bottom Navigation Bar */}
                 <View style={styles.bottomNavContainer}>
+                    {/* FAB Button */}
+                    <View style={styles.fabWrapper}>
+                        <TouchableOpacity
+                            style={styles.fabButton}
+                            onPress={() => onNavigate('add-card')}
+                        >
+                            <Feather name="plus" size={32} color="white" />
+                        </TouchableOpacity>
+                    </View>
+
                     <View style={styles.bottomNav}>
                         <TouchableOpacity style={styles.navItemActive}>
                             <Ionicons name="home" size={20} color="#FFFFFF" />
@@ -285,19 +311,6 @@ const styles = StyleSheet.create({
         color: '#64748B',
         fontWeight: '500',
     },
-    addButton: {
-        width: 44,
-        height: 44,
-        borderRadius: 12,
-        backgroundColor: '#E11D48', // Rose 600
-        justifyContent: 'center',
-        alignItems: 'center',
-        shadowColor: '#E11D48',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 4,
-    },
     tipContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -314,6 +327,28 @@ const styles = StyleSheet.create({
     tipText: {
         fontSize: 12,
         color: '#1E40AF',
+        fontWeight: '500',
+    },
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        marginHorizontal: 24,
+        marginBottom: 20,
+        shadowColor: '#E2E8F0',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.5,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    searchInput: {
+        flex: 1,
+        marginLeft: 12,
+        fontSize: 16,
+        color: '#0F172A',
         fontWeight: '500',
     },
     contentScroll: {
@@ -444,10 +479,29 @@ const styles = StyleSheet.create({
     },
 
     // Bottom Nav (Pill)
+    // Bottom Nav (Pill) & FAB
     bottomNavContainer: {
         position: 'absolute',
         bottom: 30,
         alignSelf: 'center',
+        alignItems: 'center',
+    },
+    fabWrapper: {
+        marginBottom: 16,
+        zIndex: 10,
+    },
+    fabButton: {
+        width: 64,
+        height: 64,
+        borderRadius: 24, // Squircle-ish
+        backgroundColor: '#E11D48', // Red/Rose to match MyCards theme
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#E11D48',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.4,
+        shadowRadius: 16,
+        elevation: 10,
     },
     bottomNav: {
         flexDirection: 'row',

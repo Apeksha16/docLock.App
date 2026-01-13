@@ -170,14 +170,7 @@ export default function FriendsScreen({ onNavigate, userId }: FriendsScreenProps
                         The screenshot shows a generic page, but usually adding is crucial.
                         Let's put a small add button in header if populated.
                     */}
-                    {friends.length > 0 && (
-                        <TouchableOpacity
-                            style={styles.headerAddButton}
-                            onPress={() => setShowAddFriend(true)}
-                        >
-                            <Feather name="plus" size={24} color="white" />
-                        </TouchableOpacity>
-                    )}
+                    {/* Add Button Removed from Header */}
                 </View>
 
                 {/* Dashboard Content if Friends Exist */}
@@ -458,6 +451,18 @@ export default function FriendsScreen({ onNavigate, userId }: FriendsScreenProps
 
             </SafeAreaView>
 
+            {/* Bottom FAB */}
+            {friends.length > 0 && (
+                <View style={styles.fabContainer}>
+                    <TouchableOpacity
+                        style={styles.fabButton}
+                        onPress={() => setShowAddFriend(true)}
+                    >
+                        <Feather name="plus" size={32} color="white" />
+                    </TouchableOpacity>
+                </View>
+            )}
+
 
         </View>
     );
@@ -703,19 +708,7 @@ const styles = StyleSheet.create({
         flex: 1,
         paddingHorizontal: 24,
     },
-    headerAddButton: {
-        position: 'absolute',
-        right: 24,
-        top: 0,
-        backgroundColor: '#EC4899',
-        padding: 8,
-        borderRadius: 12,
-        shadowColor: '#EC4899',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 4,
-    },
+
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -798,6 +791,26 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         flex: 1,
+    },
+    // FAB Styles
+    fabContainer: {
+        position: 'absolute',
+        bottom: 30, // Adjust based on tab bar height if exists, or just bottom
+        alignSelf: 'center',
+        zIndex: 100,
+    },
+    fabButton: {
+        width: 64,
+        height: 64,
+        borderRadius: 24, // Squircle shape
+        backgroundColor: '#EC4899', // Pink to match theme
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#EC4899',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.4,
+        shadowRadius: 16,
+        elevation: 10,
     },
     friendAvatar: {
         width: 48,

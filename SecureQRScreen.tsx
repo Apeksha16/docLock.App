@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, TextInput, Pressable, Alert, ActivityIndicator } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { Ionicons, Feather, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Swipeable } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { captureRef } from 'react-native-view-shot';
@@ -17,11 +18,14 @@ interface SecureQRCardItemProps {
 
 const SecureQRCardItem = ({ qr, onDelete, onEdit, styles }: SecureQRCardItemProps) => {
     const viewRef = useRef(null);
+    const swipeableRef = useRef<Swipeable>(null);
     const [isDownloading, setIsDownloading] = useState(false);
 
     const handleDownload = async () => {
         try {
             setIsDownloading(true);
+            // Close swipe if open
+            swipeableRef.current?.close();
             // Wait for render update to hide buttons
             await new Promise(resolve => setTimeout(resolve, 100));
 
@@ -39,63 +43,84 @@ const SecureQRCardItem = ({ qr, onDelete, onEdit, styles }: SecureQRCardItemProp
         }
     };
 
+    const renderRightActions = (progress: any, dragX: any) => {
+        return (
+            <TouchableOpacity
+                style={styles.deleteAction}
+                onPress={() => {
+                    swipeableRef.current?.close();
+                    onDelete(qr.id);
+                }}
+            >
+                <Feather name="trash-2" size={24} color="white" />
+                <Text style={styles.actionText}>Delete</Text>
+            </TouchableOpacity>
+        );
+    };
+
     return (
-        <TouchableOpacity activeOpacity={0.9} onPress={() => onEdit(qr)} style={styles.cardContainer}>
-            <View ref={viewRef} collapsable={false}>
-                <LinearGradient
-                    colors={['#FB923C', '#EA580C']} // Orange 400 to Orange 600
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.cardGradient}
-                >
-                    {/* Geometric Overlay */}
-                    <View style={styles.geometricOverlay1} />
-                    <View style={styles.geometricOverlay2} />
+        <View style={styles.swipeWrapper}>
+            <Swipeable
+                ref={swipeableRef}
+                renderRightActions={renderRightActions}
+                overshootRight={false}
+            >
+                <TouchableOpacity activeOpacity={0.9} onPress={() => onEdit(qr)} style={styles.cardContainer}>
+                    <View ref={viewRef} collapsable={false}>
+                        <LinearGradient
+                            colors={['#FB923C', '#EA580C']} // Orange 400 to Orange 600
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.cardGradient}
+                        >
+                            {/* Geometric Overlay */}
+                            <View style={styles.geometricOverlay1} />
+                            <View style={styles.geometricOverlay2} />
 
-                    <View style={styles.cardContent}>
-                        {/* Left Side */}
-                        <View style={styles.cardLeft}>
-                            <View style={styles.filesBadge}>
-                                <Feather name="file-text" size={14} color="#FFFFFF" />
-                                <Text style={styles.filesBadgeText}>{qr.filesCount} Files</Text>
-                            </View>
+                            <View style={styles.cardContent}>
+                                {/* Left Side */}
+                                <View style={styles.cardLeft}>
+                                    <View style={styles.filesBadge}>
+                                        <Feather name="file-text" size={14} color="#FFFFFF" />
+                                        <Text style={styles.filesBadgeText}>{qr.filesCount} Files</Text>
+                                    </View>
 
-                            {/* Action Buttons - Hidden during download */}
-                            <View style={[styles.actionButtonsRow, { opacity: isDownloading ? 0 : 1 }]}>
-                                <TouchableOpacity style={styles.actionButton} onPress={handleDownload}>
-                                    <Feather name="download" size={18} color="#FFFFFF" />
-                                </TouchableOpacity>
-                                <TouchableOpacity style={styles.actionButton} onPress={() => onDelete(qr.id)}>
-                                    <Feather name="trash-2" size={18} color="#FFFFFF" />
-                                </TouchableOpacity>
-                            </View>
+                                    {/* Action Buttons - Hidden during download - Only Download now */}
+                                    <View style={[styles.actionButtonsRow, { opacity: isDownloading ? 0 : 1 }]}>
+                                        <TouchableOpacity style={styles.actionButton} onPress={handleDownload}>
+                                            <Feather name="download" size={18} color="#FFFFFF" />
+                                        </TouchableOpacity>
+                                        {/* Delete moved to Swipe */}
+                                    </View>
 
-                            <View style={styles.cardInfo}>
-                                <Text style={styles.cardIdText} numberOfLines={1}>{qr.label}</Text>
-                                <View style={styles.dateRow}>
-                                    <Feather name="calendar" size={14} color="#FED7AA" />
-                                    <Text style={styles.dateText}>{qr.date}</Text>
+                                    <View style={styles.cardInfo}>
+                                        <Text style={styles.cardIdText} numberOfLines={1}>{qr.label}</Text>
+                                        <View style={styles.dateRow}>
+                                            <Feather name="calendar" size={14} color="#FED7AA" />
+                                            <Text style={styles.dateText}>{qr.date}</Text>
+                                        </View>
+                                    </View>
+                                </View>
+
+                                {/* Right Side - QR Code */}
+                                <View style={styles.qrContainer}>
+                                    <View style={styles.qrBox}>
+                                        <QRCode
+                                            value={`https://doclock.app/verify/${qr.id}`}
+                                            size={90}
+                                            color="black"
+                                            backgroundColor="white"
+                                            enableLinearGradient={true}
+                                            linearGradient={['#F97316', '#DB2777']} // Orange to Pink/Red
+                                        />
+                                    </View>
                                 </View>
                             </View>
-                        </View>
-
-                        {/* Right Side - QR Code */}
-                        <View style={styles.qrContainer}>
-                            <View style={styles.qrBox}>
-                                <QRCode
-                                    value={`https://doclock.app/verify/${qr.id}`}
-                                    size={90}
-                                    color="black"
-                                    backgroundColor="white"
-                                    enableLinearGradient={true}
-                                    linearGradient={['#F97316', '#DB2777']} // Orange to Pink/Red
-                                />
-                            </View>
-                        </View>
+                        </LinearGradient>
                     </View>
-                </LinearGradient>
-            </View>
-        </TouchableOpacity>
+                </TouchableOpacity>
+            </Swipeable>
+        </View>
     );
 };
 
@@ -107,6 +132,7 @@ interface SecureQRScreenProps {
 export default function SecureQRScreen({ onNavigate, userId }: SecureQRScreenProps) {
     const [qrCodes, setQrCodes] = useState<any[]>([]);
     const [loadingQrs, setLoadingQrs] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const [allDocuments, setAllDocuments] = useState<any[]>([]);
     const [loadingDocs, setLoadingDocs] = useState(false);
@@ -187,7 +213,16 @@ export default function SecureQRScreen({ onNavigate, userId }: SecureQRScreenPro
 
     const handleSaveQR = async () => {
         if (!userId) return;
-        if (!label || selectedDocs.length === 0) return;
+
+        if (!label.trim()) {
+            Alert.alert("Missing Information", "Please enter a label for this Secure QR.");
+            return;
+        }
+
+        if (selectedDocs.length === 0) {
+            Alert.alert("No Documents", "Please select at least one document to secure.");
+            return;
+        }
 
         try {
             setSaving(true);
@@ -258,9 +293,6 @@ export default function SecureQRScreen({ onNavigate, userId }: SecureQRScreenPro
                         <Text style={styles.headerSubtitle}>{qrCodes.length} active codes</Text>
                     </View>
 
-                    <TouchableOpacity style={styles.addButton} onPress={handleOpenAddModal}>
-                        <Feather name="plus" size={24} color="#FFFFFF" />
-                    </TouchableOpacity>
                 </View>
 
                 <View style={styles.content}>
@@ -280,15 +312,29 @@ export default function SecureQRScreen({ onNavigate, userId }: SecureQRScreenPro
                     ) : (
                         /* List State */
                         <ScrollView showsVerticalScrollIndicator={false}>
-                            {qrCodes.map((qr) => (
-                                <SecureQRCardItem
-                                    key={qr.id}
-                                    qr={qr}
-                                    onDelete={confirmDelete}
-                                    onEdit={handleEditQR}
-                                    styles={styles}
+                            {/* Search Bar */}
+                            <View style={styles.searchContainer}>
+                                <Feather name="search" size={20} color="#94A3B8" />
+                                <TextInput
+                                    style={styles.searchInput}
+                                    placeholder="Search QRs..."
+                                    placeholderTextColor="#94A3B8"
+                                    value={searchQuery}
+                                    onChangeText={setSearchQuery}
                                 />
-                            ))}
+                            </View>
+
+                            {qrCodes
+                                .filter(qr => qr.label?.toLowerCase().includes(searchQuery.toLowerCase()))
+                                .map((qr) => (
+                                    <SecureQRCardItem
+                                        key={qr.id}
+                                        qr={qr}
+                                        onDelete={confirmDelete}
+                                        onEdit={handleEditQR}
+                                        styles={styles}
+                                    />
+                                ))}
                             {/* Spacer */}
                             <View style={{ height: 100 }} />
                         </ScrollView>
@@ -302,6 +348,16 @@ export default function SecureQRScreen({ onNavigate, userId }: SecureQRScreenPro
 
             {/* Bottom Navigation Bar */}
             <View style={styles.bottomNavContainer}>
+                {/* FAB Button */}
+                <View style={styles.fabWrapper}>
+                    <TouchableOpacity
+                        style={styles.fabButton}
+                        onPress={handleOpenAddModal}
+                    >
+                        <Feather name="plus" size={32} color="white" />
+                    </TouchableOpacity>
+                </View>
+
                 <View style={styles.bottomNav}>
                     <TouchableOpacity style={styles.navItemActive} onPress={() => onNavigate('dashboard')}>
                         <Ionicons name="home" size={20} color="#FFFFFF" />
@@ -380,10 +436,10 @@ export default function SecureQRScreen({ onNavigate, userId }: SecureQRScreenPro
                         <TouchableOpacity
                             style={[
                                 styles.generateButton,
-                                { backgroundColor: (label && selectedDocs.length > 0) ? '#F97316' : '#FBAC78' }
+                                { backgroundColor: '#F97316', opacity: saving ? 0.7 : 1 }
                             ]}
                             onPress={handleSaveQR}
-                            disabled={!(label && selectedDocs.length > 0) || saving}
+                            disabled={saving}
                         >
                             {saving ? (
                                 <ActivityIndicator color="white" />
@@ -485,19 +541,13 @@ const styles = StyleSheet.create({
         color: '#64748B',
         marginTop: 2,
     },
-    addButton: {
-        width: 44,
-        height: 44,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#F97316', // Orange 500
-        borderRadius: 12,
-        shadowColor: '#F97316',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 4,
+    headerSubtitle: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#64748B',
+        marginTop: 2,
     },
+    // addButton removed
     content: {
         flex: 1,
         paddingHorizontal: 24,
@@ -536,6 +586,11 @@ const styles = StyleSheet.create({
     },
 
     // Card Styles
+    swipeWrapper: {
+        marginBottom: 20,
+        borderRadius: 24,
+        overflow: 'hidden', // Required for corner radius with swipe
+    },
     cardContainer: {
         borderRadius: 24,
         shadowColor: '#F97316',
@@ -543,7 +598,49 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.25,
         shadowRadius: 20,
         elevation: 8,
+        // marginBottom removed, handled by wrapper
+        backgroundColor: '#FFF', // Ensure bg is white behind gradient if needed
+    },
+    deleteAction: {
+        backgroundColor: '#EF4444',
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: 100,
+        height: '100%',
+        borderRadius: 24, // Match card radius
+        marginLeft: 10,
+        shadowColor: '#EF4444',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 4,
+    },
+    actionText: {
+        color: 'white',
+        fontSize: 14,
+        fontWeight: '700',
+        marginTop: 6,
+    },
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
         marginBottom: 20,
+        shadowColor: '#E2E8F0',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.5,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    searchInput: {
+        flex: 1,
+        marginLeft: 12,
+        fontSize: 16,
+        color: '#0F172A',
+        fontWeight: '500',
     },
     cardGradient: {
         borderRadius: 24,
@@ -876,6 +973,62 @@ const styles = StyleSheet.create({
     cancelText: {
         color: '#64748B',
         fontWeight: '600',
-        fontSize: 16,
+    },
+    // Bottom Nav (Pill) & FAB
+    bottomNavContainer: {
+        position: 'absolute',
+        bottom: 30,
+        left: 0,
+        right: 0,
+        alignItems: 'center',
+    },
+    fabWrapper: {
+        marginBottom: 16,
+        zIndex: 10,
+    },
+    fabButton: {
+        width: 64,
+        height: 64,
+        borderRadius: 24, // Squircle shape
+        backgroundColor: '#F97316', // Orange 500
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#F97316',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.4,
+        shadowRadius: 16,
+        elevation: 10,
+    },
+    bottomNav: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 30,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        elevation: 10,
+        gap: 20,
+    },
+    navItem: {
+        padding: 10,
+    },
+    navItemActive: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F97316', // Orange 500 to match theme
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 20,
+        gap: 8,
+    },
+    navTextActive: {
+        color: '#FFFFFF',
+        fontWeight: '700',
+        fontSize: 14,
     },
 });
+
