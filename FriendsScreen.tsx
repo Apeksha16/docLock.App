@@ -105,21 +105,18 @@ export default function FriendsScreen({ onNavigate, userId }: FriendsScreenProps
         }
     };
 
-    // Fetch friends on mount
+    // Subscribe to friends on mount
     React.useEffect(() => {
         if (!userId) return;
-        const fetchFriends = async () => {
-            try {
-                const data = await firestoreService.getFriends(userId);
-                setFriends(data);
-            } catch (error) {
-                console.error("Failed to fetch friends", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchFriends();
-    }, [userId, showAddFriend]); // Refetch when coming back from Add Friend
+
+        const unsubscribe = firestoreService.subscribeToFriends(userId, (data) => {
+            setFriends(data);
+            setIsLoading(false);
+        });
+
+        // Cleanup subscription on unmount
+        return () => unsubscribe();
+    }, [userId]);
 
     const handleAddFriend = () => {
         // Button Scale Animation
@@ -461,23 +458,7 @@ export default function FriendsScreen({ onNavigate, userId }: FriendsScreenProps
 
             </SafeAreaView>
 
-            {/* Bottom Navigation Bar */}
-            <View style={styles.bottomNavContainer}>
-                <View style={styles.bottomNav}>
-                    <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('dashboard')}>
-                        <Ionicons name="home-outline" size={24} color="#94A3B8" />
-                    </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.navItemActive}>
-                        <FontAwesome5 name="user-friends" size={16} color="#FFFFFF" />
-                        <Text style={styles.navTextActive}>Friends</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('profile')}>
-                        <FontAwesome5 name="user" size={20} color="#94A3B8" />
-                    </TouchableOpacity>
-                </View>
-            </View>
         </View>
     );
 }
@@ -603,8 +584,8 @@ const styles = StyleSheet.create({
     },
     header: {
         alignItems: 'center',
-        marginTop: 40,
-        marginBottom: 60,
+        marginTop: 20, // Reduced from 40
+        marginBottom: 30, // Reduced from 60
     },
     addFriendHeaderRow: {
         flexDirection: 'row',
@@ -716,44 +697,7 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: '#FFFFFF',
     },
-    bottomNavContainer: {
-        position: 'absolute',
-        bottom: 30,
-        left: 0,
-        right: 0,
-        alignItems: 'center',
-    },
-    bottomNav: {
-        flexDirection: 'row',
-        backgroundColor: '#FFFFFF',
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 30,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.1,
-        shadowRadius: 20,
-        elevation: 10,
-        gap: 30,
-        alignItems: 'center',
-    },
-    navItem: {
-        padding: 10,
-    },
-    navItemActive: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#EC4899', // Pink
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 20,
-        gap: 8,
-    },
-    navTextActive: {
-        color: '#FFFFFF',
-        fontWeight: '700',
-        fontSize: 14,
-    },
+
     // Dashboard Styles
     dashboardContent: {
         flex: 1,

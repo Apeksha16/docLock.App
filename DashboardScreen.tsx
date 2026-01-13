@@ -269,21 +269,7 @@ export default function DashboardScreen({ onNavigate, userProfile, notifications
 
             </ScrollView>
 
-            {/* Bottom Navigation Bar */}
-            <View style={styles.bottomNavContainer}>
-                <View style={styles.bottomNav}>
-                    <TouchableOpacity style={styles.navItemActive}>
-                        <Ionicons name="home" size={20} color="#FFFFFF" />
-                        <Text style={styles.navTextActive}>Home</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('friends')}>
-                        <FontAwesome5 name="user-friends" size={20} color="#94A3B8" />
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('profile')}>
-                        <FontAwesome5 name="user" size={20} color="#94A3B8" />
-                    </TouchableOpacity>
-                </View>
-            </View>
+
         </View>
     );
 }
@@ -498,41 +484,5 @@ const styles = StyleSheet.create({
         color: '#94A3B8',
         fontWeight: '500',
     },
-    bottomNavContainer: {
-        position: 'absolute',
-        bottom: 30,
-        left: 0,
-        right: 0,
-        alignItems: 'center',
-    },
-    bottomNav: {
-        flexDirection: 'row',
-        backgroundColor: '#FFFFFF',
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 30,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.1,
-        shadowRadius: 20,
-        elevation: 10,
-        gap: 30,
-    },
-    navItem: {
-        padding: 10,
-    },
-    navItemActive: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#6366F1',
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 20,
-        gap: 8,
-    },
-    navTextActive: {
-        color: '#FFFFFF',
-        fontWeight: '700',
-        fontSize: 14,
-    },
+
 });

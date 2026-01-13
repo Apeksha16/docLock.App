@@ -347,23 +347,7 @@ export default function ProfileScreen({ onNavigate, userProfile, appConfig, user
                 </ScrollView>
             </SafeAreaView>
 
-            {/* Bottom Navigation Bar */}
-            <View style={styles.bottomNavContainer}>
-                <View style={styles.bottomNav}>
-                    <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('dashboard')}>
-                        <Ionicons name="home-outline" size={24} color="#94A3B8" />
-                    </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('friends')}>
-                        <FontAwesome5 name="user-friends" size={20} color="#94A3B8" />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.navItemActive}>
-                        <FontAwesome5 name="user" size={16} color="#FFFFFF" />
-                        <Text style={styles.navTextActive}>Profile</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
 
             <SecurityPinModal
                 visible={isSecurityModalVisible}
@@ -620,44 +604,7 @@ const styles = StyleSheet.create({
         color: '#64748B',
         fontWeight: '500',
     },
-    bottomNavContainer: {
-        position: 'absolute',
-        bottom: 30,
-        left: 0,
-        right: 0,
-        alignItems: 'center',
-    },
-    bottomNav: {
-        flexDirection: 'row',
-        backgroundColor: '#FFFFFF',
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 30,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.1,
-        shadowRadius: 20,
-        elevation: 10,
-        gap: 30,
-        alignItems: 'center',
-    },
-    navItem: {
-        padding: 10,
-    },
-    navItemActive: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#2DD4BF', // Teal 400
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 20,
-        gap: 8,
-    },
-    navTextActive: {
-        color: '#FFFFFF',
-        fontWeight: '700',
-        fontSize: 14,
-    },
+
     avatarImage: {
         width: '100%',
         height: '100%',

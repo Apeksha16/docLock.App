@@ -27,6 +27,7 @@ LogBox.ignoreLogs([
 
 import AboutScreen from './AboutScreen';
 import SecurityPinModal from './components/SecurityPinModal';
+import BottomNavBar from './components/BottomNavBar';
 
 import SecureQRScreen from './SecureQRScreen';
 import MyCardsScreen from './MyCardsScreen';
@@ -182,12 +183,20 @@ export default function App() {
     }
   };
 
+  const showBottomNav = ['dashboard', 'friends', 'profile'].includes(currentScreen);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <View style={styles.container}>
           <StatusBar style={currentScreen === 'dashboard' || currentScreen === 'notifications' ? "dark" : "light"} />
           {renderScreen()}
+          {showBottomNav && (
+            <BottomNavBar
+              currentScreen={currentScreen}
+              onNavigate={(screen) => handleNavigate(screen as any)}
+            />
+          )}
         </View>
       </SafeAreaProvider>
     </GestureHandlerRootView>
