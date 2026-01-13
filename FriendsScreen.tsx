@@ -3,6 +3,7 @@ import { Pressable, StatusBar, View, Text, StyleSheet, TouchableOpacity, TextInp
 import { FontAwesome5, Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Swipeable from 'react-native-gesture-handler/Swipeable';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -169,14 +170,7 @@ export default function FriendsScreen({ onNavigate, userId }: FriendsScreenProps
                         The screenshot shows a generic page, but usually adding is crucial.
                         Let's put a small add button in header if populated.
                     */}
-                    {friends.length > 0 && (
-                        <TouchableOpacity
-                            style={styles.headerAddButton}
-                            onPress={() => setShowAddFriend(true)}
-                        >
-                            <Feather name="plus" size={24} color="white" />
-                        </TouchableOpacity>
-                    )}
+                    {/* Add Button Removed from Header */}
                 </View>
 
                 {/* Dashboard Content if Friends Exist */}
@@ -222,48 +216,13 @@ export default function FriendsScreen({ onNavigate, userId }: FriendsScreenProps
                         {/* Friends List */}
                         <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
                             {filteredFriends.map((friend) => (
-                                <View key={friend.id} style={styles.friendCard}>
-                                    <View style={styles.friendHeader}>
-                                        <View style={styles.friendAvatar}>
-                                            {friend.photoURL && friend.photoURL.length > 10 ? (
-                                                <Image source={{ uri: friend.photoURL }} style={styles.avatarImage} />
-                                            ) : (
-                                                <View style={[styles.avatarImage, { backgroundColor: '#EC4899', justifyContent: 'center', alignItems: 'center' }]}>
-                                                    <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 18 }}>
-                                                        {(friend.fullName || friend.name || '?')[0]?.toUpperCase() || '?'}
-                                                    </Text>
-                                                </View>
-                                            )}
-                                        </View>
-                                        <View style={{ flex: 1, marginLeft: 12 }}>
-                                            <Text style={styles.friendName}>{friend.fullName || friend.name || 'Unknown'}</Text>
-                                            <Text style={styles.friendDate}>Added {friend.addedAt ? format(new Date(friend.addedAt), 'MMM d, yyyy') : 'Recently'}</Text>
-                                        </View>
-                                        <TouchableOpacity
-                                            style={styles.deleteButton}
-                                            onPress={() => openRemoveModal(friend)}
-                                        >
-                                            <Feather name="trash-2" size={18} color="#EF4444" />
-                                        </TouchableOpacity>
-                                    </View>
-
-                                    <View style={styles.friendActions}>
-                                        <TouchableOpacity
-                                            style={[styles.actionButton, { backgroundColor: '#FFF5F9' }]}
-                                            onPress={() => openRequestDocModal(friend)}
-                                        >
-                                            <Feather name="file" size={16} color="#EC4899" />
-                                            <Text style={[styles.actionText, { color: '#EC4899' }]}>Request Doc</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity
-                                            style={[styles.actionButton, { backgroundColor: '#ECFDF5' }]}
-                                            onPress={() => openRequestCardModal(friend)}
-                                        >
-                                            <Feather name="credit-card" size={16} color="#10B981" />
-                                            <Text style={[styles.actionText, { color: '#10B981' }]}>Request Card</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
+                                <FriendItemRow
+                                    key={friend.id}
+                                    friend={friend}
+                                    onDelete={() => openRemoveModal(friend)}
+                                    onRequestDoc={() => openRequestDocModal(friend)}
+                                    onRequestCard={() => openRequestCardModal(friend)}
+                                />
                             ))}
                         </ScrollView>
 
@@ -492,10 +451,120 @@ export default function FriendsScreen({ onNavigate, userId }: FriendsScreenProps
 
             </SafeAreaView>
 
+            {/* Bottom FAB */}
+            {friends.length > 0 && (
+                <View style={styles.fabContainer}>
+                    <TouchableOpacity
+                        style={styles.fabButton}
+                        onPress={() => setShowAddFriend(true)}
+                    >
+                        <Feather name="plus" size={32} color="white" />
+                    </TouchableOpacity>
+                </View>
+            )}
+
 
         </View>
     );
 }
+
+interface FriendItemRowProps {
+    friend: any;
+    onDelete: () => void;
+    onRequestDoc: () => void;
+    onRequestCard: () => void;
+}
+
+const FriendItemRow = ({ friend, onDelete, onRequestDoc, onRequestCard }: FriendItemRowProps) => {
+    const swipeableRef = React.useRef<Swipeable>(null);
+
+    const closeSwipeable = () => {
+        swipeableRef.current?.close();
+    };
+
+    const renderRightActions = (progress: any, dragX: any) => {
+        return (
+            <View style={{ flexDirection: 'row', height: '100%', alignItems: 'center', paddingLeft: 8 }}>
+                <TouchableOpacity
+                    style={[styles.rightAction, { backgroundColor: '#EC4899', marginRight: 8 }]}
+                    onPress={() => {
+                        closeSwipeable();
+                        onRequestDoc();
+                    }}
+                >
+                    <Feather name="file" size={20} color="white" />
+                    <Text style={styles.swipeActionText}>Doc</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.rightAction, { backgroundColor: '#10B981' }]}
+                    onPress={() => {
+                        closeSwipeable();
+                        onRequestCard();
+                    }}
+                >
+                    <Feather name="credit-card" size={20} color="white" />
+                    <Text style={styles.swipeActionText}>Card</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    };
+
+    const renderLeftActions = (progress: any, dragX: any) => {
+        return (
+            <View style={{ height: '100%', justifyContent: 'center', paddingRight: 8 }}>
+                <TouchableOpacity
+                    style={styles.leftAction}
+                    onPress={() => {
+                        closeSwipeable();
+                        onDelete();
+                    }}
+                >
+                    <Feather name="trash-2" size={24} color="white" />
+                    <Text style={styles.swipeActionText}>Delete</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    };
+
+    return (
+        <View style={{ marginBottom: 16 }}>
+            <Swipeable
+                ref={swipeableRef}
+                renderRightActions={renderRightActions}
+                renderLeftActions={renderLeftActions}
+                overshootRight={false}
+            >
+                <View style={styles.friendCard}>
+                    <LinearGradient
+                        colors={['#FFFFFF', '#FCE7F3']} // White to Pink 100 for more visibility
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.friendCardGradient}
+                    >
+                        <View style={styles.friendHeader}>
+                            <View style={styles.friendAvatar}>
+                                {friend.photoURL ? (
+                                    <Image source={{ uri: friend.photoURL }} style={styles.avatarImage} />
+                                ) : (
+                                    <View style={[styles.avatarImage, { backgroundColor: '#EC4899', justifyContent: 'center', alignItems: 'center' }]}>
+                                        <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 18 }}>
+                                            {(friend.fullName || friend.name || '?')[0].toUpperCase()}
+                                        </Text>
+                                    </View>
+                                )}
+                            </View>
+                            <View style={{ flex: 1, marginLeft: 16 }}>
+                                <Text style={styles.friendName}>{friend.fullName || friend.name || 'Unknown'}</Text>
+                                <Text style={styles.friendDate}>Added {friend.addedAt ? format(new Date(friend.addedAt), 'MMM d, yyyy') : 'Recently'}</Text>
+                            </View>
+                            <Feather name="chevron-right" size={20} color="#FBCFE8" />
+                        </View>
+                    </LinearGradient>
+                </View>
+            </Swipeable>
+        </View>
+    );
+};
 
 const styles = StyleSheet.create({
     container: {
@@ -639,19 +708,7 @@ const styles = StyleSheet.create({
         flex: 1,
         paddingHorizontal: 24,
     },
-    headerAddButton: {
-        position: 'absolute',
-        right: 24,
-        top: 0,
-        backgroundColor: '#EC4899',
-        padding: 8,
-        borderRadius: 12,
-        shadowColor: '#EC4899',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 4,
-    },
+
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -712,22 +769,48 @@ const styles = StyleSheet.create({
         fontWeight: '500',
     },
     friendCard: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 20,
-        padding: 16,
-        marginBottom: 16,
-        shadowColor: '#64748B',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 12,
-        elevation: 3,
+        borderRadius: 24,
+        padding: 1, // For gradient border effect if needed, but here just container
+        marginBottom: 0,
+        shadowColor: '#EC4899',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.15, // Softer pink shadow
+        shadowRadius: 16,
+        elevation: 6,
+        backgroundColor: 'white', // fallback
+    },
+    friendCardGradient: {
+        padding: 20,
+        borderRadius: 24,
+        flexDirection: 'row',
+        alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#F1F5F9',
+        borderColor: '#EC4899', // Keep the border requested
     },
     friendHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 16,
+        flex: 1,
+    },
+    // FAB Styles
+    fabContainer: {
+        position: 'absolute',
+        bottom: 30, // Adjust based on tab bar height if exists, or just bottom
+        alignSelf: 'center',
+        zIndex: 100,
+    },
+    fabButton: {
+        width: 64,
+        height: 64,
+        borderRadius: 24, // Squircle shape
+        backgroundColor: '#EC4899', // Pink to match theme
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#EC4899',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.4,
+        shadowRadius: 16,
+        elevation: 10,
     },
     friendAvatar: {
         width: 48,
@@ -754,29 +837,38 @@ const styles = StyleSheet.create({
     },
     friendDate: {
         fontSize: 12,
-        color: '#94A3B8',
+        marginRight: 8,
     },
-    deleteButton: {
-        padding: 8,
-        backgroundColor: '#FEF2F2',
-        borderRadius: 10,
-    },
-    friendActions: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    actionButton: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
+    leftAction: {
+        backgroundColor: '#EF4444',
         justifyContent: 'center',
-        paddingVertical: 10,
-        borderRadius: 12,
-        gap: 6,
+        alignItems: 'center',
+        width: 90, // Wider for premium feel
+        height: '100%',
+        borderRadius: 20, // Match card radius
+        shadowColor: '#EF4444', // Colored shadow
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 4,
     },
-    actionText: {
-        fontSize: 13,
-        fontWeight: '600',
+    rightAction: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: 80, // Wider
+        height: '100%',
+        borderRadius: 20, // Match card radius
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 4,
+    },
+    swipeActionText: {
+        color: 'white',
+        fontSize: 14, // Larger font
+        fontWeight: '700', // Bolder
+        marginTop: 6,
     },
     // Modal Styles
     modalOverlay: {

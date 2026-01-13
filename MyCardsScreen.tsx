@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Dimensions, ActivityIndicator, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Dimensions, ActivityIndicator, Alert, TextInput } from 'react-native';
 import { Feather, FontAwesome5, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,31 +18,19 @@ interface MyCardsScreenProps {
     cards: any[];
 }
 
-
 export default function MyCardsScreen({ onNavigate, userId, cards }: MyCardsScreenProps) {
-    const loading = false; // Data is preloaded
-
-
-
-
+    const [searchQuery, setSearchQuery] = useState('');
     const formatDisplayCardNumber = (encryptedNumber: string) => {
         try {
             const decrypted = encryptionService.decryptData(encryptedNumber);
-            if (!decrypted || decrypted.length < 8) return '•••• •••• •••• ••••'; // Fallback
+            if (!decrypted || decrypted.length < 8) return '•••• •••• •••• ••••';
 
             const first4 = decrypted.slice(0, 4);
             const last4 = decrypted.slice(-4);
+            const middle = decrypted.slice(4, -4).replace(/\d/g, '•');
 
-            return `${first4} ${decrypted.slice(4, -4).replace(/\d/g, '•').replace(/(.{4})/g, '$1 ')} ${last4}`.replace(/\s+/g, ' ').trim();
-            // Or simpler: just first 4 and last 4 with fixed dots if we don't care about precise length matching middle
-            // User requested: "full card number should be visible with starting four numbers and ending 4 numbers rest will be hidden"
-            // Example: 1234 •••• •••• 5678 (assuming 16 digits)
-
-            // Precise replacement:
-            const middle = decrypted.slice(4, -4);
-            const maskedMiddle = middle.replace(/\d/g, '•');
-            // Add spaces every 4 chars for readability
-            const formatted = `${first4}${maskedMiddle}${last4}`.match(/.{1,4}/g)?.join(' ') || '';
+            // Format with spaces every 4 chars
+            const formatted = `${first4}${middle}${last4}`.match(/.{1,4}/g)?.join(' ') || '';
             return formatted;
         } catch (e) {
             return '•••• •••• •••• ••••';
@@ -157,8 +145,14 @@ export default function MyCardsScreen({ onNavigate, userId, cards }: MyCardsScre
     };
 
     const userPlaceholderName = "USER NAME"; // Fallback
-    const debitCards = cards.filter(c => c.cardType === 'debit' || !c.cardType);
-    const creditCards = cards.filter(c => c.cardType === 'credit');
+
+    const filteredCards = cards.filter(c =>
+        (c.cardName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (c.holderName || '').toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    const debitCards = filteredCards.filter(c => c.cardType === 'debit' || !c.cardType);
+    const creditCards = filteredCards.filter(c => c.cardType === 'credit');
 
     return (
         <View style={styles.container}>
@@ -180,9 +174,6 @@ export default function MyCardsScreen({ onNavigate, userId, cards }: MyCardsScre
                         <Text style={styles.headerSubtitle}>Total {cards.length} cards</Text>
                     </View>
 
-                    <TouchableOpacity style={styles.addButton} onPress={() => onNavigate('add-card')}>
-                        <Feather name="plus" size={24} color="#FFF" />
-                    </TouchableOpacity>
                 </View>
 
                 {/* Tip Banner */}
@@ -191,55 +182,72 @@ export default function MyCardsScreen({ onNavigate, userId, cards }: MyCardsScre
                     <Text style={styles.tipText}>Tip: Click any card detail to copy it.</Text>
                 </View>
 
-                {loading ? (
-                    <View style={styles.center}>
-                        <ActivityIndicator size="large" color="#E11D48" />
+                {/* Content Section */}
+                <ScrollView style={styles.contentScroll} showsVerticalScrollIndicator={false}>
+                    {/* Search Bar */}
+                    <View style={styles.searchContainer}>
+                        <Feather name="search" size={20} color="#94A3B8" />
+                        <TextInput
+                            style={styles.searchInput}
+                            placeholder="Search Cards..."
+                            placeholderTextColor="#94A3B8"
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                        />
                     </View>
-                ) : (
-                    <ScrollView style={styles.contentScroll} showsVerticalScrollIndicator={false}>
 
-                        {/* Debit Cards Section */}
-                        <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionTitle}>Debit Cards</Text>
-                            <View style={styles.countBadge}>
-                                <Text style={styles.countText}>{debitCards.length} cards</Text>
-                            </View>
+                    {/* Debit Cards Section */}
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Debit Cards</Text>
+                        <View style={styles.countBadge}>
+                            <Text style={styles.countText}>{debitCards.length} cards</Text>
                         </View>
+                    </View>
 
-                        <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            contentContainerStyle={styles.horizontalList}
-                        >
-                            {debitCards.length > 0 ? debitCards.map(renderCardItem) : (
-                                <Text style={styles.noCardsText}>No debit cards added.</Text>
-                            )}
-                        </ScrollView>
-
-                        {/* Credit Cards Section */}
-                        <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionTitle}>Credit Cards</Text>
-                            <View style={styles.countBadge}>
-                                <Text style={styles.countText}>{creditCards.length} cards</Text>
-                            </View>
-                        </View>
-
-                        <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            contentContainerStyle={styles.horizontalList}
-                        >
-                            {creditCards.length > 0 ? creditCards.map(renderCardItem) : (
-                                <Text style={styles.noCardsText}>No credit cards added.</Text>
-                            )}
-                        </ScrollView>
-
-                        <View style={{ height: 100 }} />
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.horizontalList}
+                    >
+                        {debitCards.length > 0 ? debitCards.map(renderCardItem) : (
+                            <Text style={styles.noCardsText}>No debit cards added.</Text>
+                        )}
                     </ScrollView>
-                )}
+
+                    {/* Credit Cards Section */}
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Credit Cards</Text>
+                        <View style={styles.countBadge}>
+                            <Text style={styles.countText}>{creditCards.length} cards</Text>
+                        </View>
+                    </View>
+
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.horizontalList}
+                    >
+                        {creditCards.length > 0 ? creditCards.map(renderCardItem) : (
+                            <Text style={styles.noCardsText}>No credit cards added.</Text>
+                        )}
+                    </ScrollView>
+
+                    <View style={{ height: 100 }} />
+                </ScrollView>
+
+                {/* FAB Button for Add Card */}
+                <View style={styles.fabWrapper}>
+                    <TouchableOpacity
+                        style={styles.fabButton}
+                        onPress={() => onNavigate('add-card')}
+                    >
+                        <Feather name="plus" size={32} color="white" />
+                    </TouchableOpacity>
+                </View>
 
                 {/* Shared Bottom Navigation Bar */}
                 <BottomNavBar currentScreen="my-cards" onNavigate={(screen: any) => onNavigate(screen)} />
+
             </SafeAreaView>
         </View>
     );
@@ -299,19 +307,6 @@ const styles = StyleSheet.create({
         color: '#64748B',
         fontWeight: '500',
     },
-    addButton: {
-        width: 44,
-        height: 44,
-        borderRadius: 12,
-        backgroundColor: '#E11D48', // Rose 600
-        justifyContent: 'center',
-        alignItems: 'center',
-        shadowColor: '#E11D48',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 4,
-    },
     tipContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -328,6 +323,28 @@ const styles = StyleSheet.create({
     tipText: {
         fontSize: 12,
         color: '#1E40AF',
+        fontWeight: '500',
+    },
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        marginHorizontal: 24,
+        marginBottom: 20,
+        shadowColor: '#E2E8F0',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.5,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    searchInput: {
+        flex: 1,
+        marginLeft: 12,
+        fontSize: 16,
+        color: '#0F172A',
         fontWeight: '500',
     },
     contentScroll: {
@@ -457,5 +474,25 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
 
+    // FAB Button for Add Card
+    fabWrapper: {
+        position: 'absolute',
+        bottom: 100,
+        alignSelf: 'center',
+        zIndex: 10,
+    },
+    fabButton: {
+        width: 64,
+        height: 64,
+        borderRadius: 24,
+        backgroundColor: '#E11D48',
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#E11D48',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.4,
+        shadowRadius: 16,
+        elevation: 10,
+    },
 });
 

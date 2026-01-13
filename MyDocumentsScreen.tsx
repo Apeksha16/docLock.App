@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, TextIn
 import { Feather, FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Swipeable from 'react-native-gesture-handler/Swipeable';
 import * as DocumentPicker from 'expo-document-picker';
 import { firestoreService } from './services/firestoreService';
 import { storageService } from './services/storageService';
@@ -31,7 +32,6 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
     // UI State
     const [isCreateFolderVisible, setCreateFolderVisible] = useState(false);
     const [newFolderName, setNewFolderName] = useState('');
-    const [activeOptionItemId, setActiveOptionItemId] = useState<string | null>(null);
     const [renamingId, setRenamingId] = useState<string | null>(null);
     const [isCreatingFolder, setIsCreatingFolder] = useState(false); // Loading state
     const [isFabMenuOpen, setIsFabMenuOpen] = useState(false);
@@ -65,7 +65,6 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
 
     const initiateDelete = (item: DocumentItem) => {
         setDeletingItem(item);
-        setActiveOptionItemId(null);
     };
 
     const confirmDelete = async () => {
@@ -129,7 +128,6 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
     const initiateRename = (item: DocumentItem) => {
         setNewFolderName(item.name);
         setRenamingId(item.id);
-        setActiveOptionItemId(null);
         setCreateFolderVisible(true);
     };
 
@@ -255,83 +253,21 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
         }
     };
 
-    // Close options when clicking elsewhere
-    const closeOptions = () => setActiveOptionItemId(null);
+
 
     const renderDocumentItem = ({ item }: { item: DocumentItem }) => (
-        <View style={{ zIndex: activeOptionItemId === item.id ? 10 : 1 }}>
-            {/* Wrapper View for zIndex handling since FlatList items can overlap z-index wise */}
-            <TouchableOpacity
-                style={styles.docItem}
-                onPress={() => {
-                    if (activeOptionItemId) {
-                        closeOptions();
-                    } else if (item.type === 'folder') {
-                        navigateToFolder(item);
-                    } else {
-                        setViewingFile(item);
-                    }
-                }}
-                activeOpacity={item.type === 'folder' ? 0.7 : 1}
-            >
-                <View style={styles.docItemLeft}>
-                    <View style={[styles.docIconContainer, item.type === 'folder' ? styles.folderIconBg : styles.fileIconBg]}>
-                        {item.type === 'folder' ? (
-                            <View style={styles.initialIcon}>
-                                <Text style={styles.initialText}>{(item.name[0] || '?').toUpperCase()}</Text>
-                            </View>
-                        ) : (
-                            <Feather name="image" size={24} color="#EA580C" />
-                        )}
-                    </View>
-                    <View style={{ flex: 1 }}>
-                        <Text style={styles.docName} numberOfLines={1} ellipsizeMode="middle">{item.name}</Text>
-                        <Text style={styles.docMeta}>{item.meta}</Text>
-                    </View>
-                </View>
-                <TouchableOpacity
-                    style={styles.moreButton}
-                    onPress={() => setActiveOptionItemId(activeOptionItemId === item.id ? null : item.id)}
-                >
-                    <Feather name="more-vertical" size={20} color="#94A3B8" />
-                </TouchableOpacity>
-
-                {/* Options Menu */}
-                {activeOptionItemId === item.id && (
-                    <View style={styles.optionsMenu}>
-                        {item.type === 'folder' ? (
-                            <>
-                                <TouchableOpacity style={styles.optionItem} onPress={() => initiateRename(item)}>
-                                    <Feather name="edit-2" size={16} color="#64748B" />
-                                    <Text style={styles.optionText}>Rename</Text>
-                                </TouchableOpacity>
-                                <View style={styles.optionDivider} />
-                                <TouchableOpacity style={styles.optionItem} onPress={() => initiateDelete(item)}>
-                                    <Feather name="trash-2" size={16} color="#EF4444" />
-                                    <Text style={[styles.optionText, { color: '#EF4444' }]}>Delete</Text>
-                                </TouchableOpacity>
-                            </>
-                        ) : (
-                            <>
-                                <TouchableOpacity style={styles.optionItem}>
-                                    <Feather name="download" size={16} color="#F97316" />
-                                    <Text style={[styles.optionText, { color: '#F97316' }]}>Download</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity style={styles.optionItem}>
-                                    <Feather name="share-2" size={16} color="#F59E0B" />
-                                    <Text style={[styles.optionText, { color: '#F59E0B' }]}>Share</Text>
-                                </TouchableOpacity>
-                                <View style={styles.optionDivider} />
-                                <TouchableOpacity style={styles.optionItem} onPress={() => initiateDelete(item)}>
-                                    <Feather name="trash-2" size={16} color="#EF4444" />
-                                    <Text style={[styles.optionText, { color: '#EF4444' }]}>Delete</Text>
-                                </TouchableOpacity>
-                            </>
-                        )}
-                    </View>
-                )}
-            </TouchableOpacity>
-        </View>
+        <DocumentItemRow
+            item={item}
+            onRename={() => initiateRename(item)}
+            onDelete={() => initiateDelete(item)}
+            onPress={() => {
+                if (item.type === 'folder') {
+                    navigateToFolder(item);
+                } else {
+                    setViewingFile(item);
+                }
+            }}
+        />
     );
 
     return (
@@ -751,6 +687,86 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
     );
 }
 
+// Separate component for list item to handle swipe ref
+interface DocumentItemRowProps {
+    item: DocumentItem;
+    onRename: () => void;
+    onDelete: () => void;
+    onPress: () => void;
+}
+
+const DocumentItemRow = ({ item, onRename, onDelete, onPress }: DocumentItemRowProps) => {
+    const swipeableRef = React.useRef<Swipeable>(null);
+
+    const closeSwipeable = () => {
+        swipeableRef.current?.close();
+    };
+
+    const renderRightActions = (progress: any, dragX: any) => {
+        return (
+            <TouchableOpacity
+                style={styles.rightAction}
+                onPress={() => {
+                    closeSwipeable();
+                    onRename();
+                }}
+            >
+                <Feather name="edit-2" size={24} color="white" />
+                <Text style={styles.actionText}>Rename</Text>
+            </TouchableOpacity>
+        );
+    };
+
+    const renderLeftActions = (progress: any, dragX: any) => {
+        return (
+            <TouchableOpacity
+                style={styles.leftAction}
+                onPress={() => {
+                    closeSwipeable();
+                    onDelete();
+                }}
+            >
+                <Feather name="trash-2" size={24} color="white" />
+                <Text style={styles.actionText}>Delete</Text>
+            </TouchableOpacity>
+        );
+    };
+
+    return (
+        <View style={{ zIndex: 1, marginBottom: 12 }}>
+            <Swipeable
+                ref={swipeableRef}
+                renderRightActions={renderRightActions}
+                renderLeftActions={renderLeftActions}
+            >
+                <View style={{ backgroundColor: '#FFF7ED' }}>
+                    <TouchableOpacity
+                        style={styles.docItem}
+                        onPress={onPress}
+                        activeOpacity={item.type === 'folder' ? 0.7 : 1}
+                    >
+                        <View style={styles.docItemLeft}>
+                            <View style={[styles.docIconContainer, item.type === 'folder' ? styles.folderIconBg : styles.fileIconBg]}>
+                                {item.type === 'folder' ? (
+                                    <View style={styles.initialIcon}>
+                                        <Text style={styles.initialText}>{(item.name[0] || '?').toUpperCase()}</Text>
+                                    </View>
+                                ) : (
+                                    <Feather name="image" size={24} color="#EA580C" />
+                                )}
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.docName} numberOfLines={1} ellipsizeMode="middle">{item.name}</Text>
+                                <Text style={styles.docMeta}>{item.meta}</Text>
+                            </View>
+                        </View>
+                    </TouchableOpacity>
+                </View>
+            </Swipeable>
+        </View>
+    );
+};
+
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -931,12 +947,11 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
         padding: 16,
         borderRadius: 16,
-        marginBottom: 12,
         shadowColor: '#64748B',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
-        shadowRadius: 4,
-        elevation: 1,
+        shadowRadius: 8,
+        elevation: 2,
     },
     docItemLeft: {
         flexDirection: 'row',
@@ -1296,11 +1311,35 @@ const styles = StyleSheet.create({
 
     // Delete Modal Text
     deleteConfirmText: {
+        textAlign: 'center',
         fontSize: 14,
         color: '#64748B',
-        textAlign: 'center',
-        marginBottom: 24,
         lineHeight: 20,
+        marginBottom: 24,
+    },
+    actionText: {
+        color: 'white',
+        fontWeight: '600',
+        fontSize: 14,
+        marginTop: 4,
+    },
+    leftAction: {
+        backgroundColor: '#EF4444',
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: 100,
+        height: '100%',
+        marginRight: 8, // Added space
+        borderRadius: 16,
+    },
+    rightAction: {
+        backgroundColor: '#F59E0B',
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: 100,
+        height: '100%',
+        marginLeft: 8, // Added space
+        borderRadius: 16,
     },
     overlay: {
         ...StyleSheet.absoluteFillObject,
