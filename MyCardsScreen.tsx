@@ -482,17 +482,17 @@ const styles = StyleSheet.create({
         zIndex: 10,
     },
     fabButton: {
-        width: 64,
-        height: 64,
-        borderRadius: 24,
-        backgroundColor: '#E11D48',
+        width: 56,
+        height: 56,
+        borderRadius: 20, // Squircle (Standardized)
+        backgroundColor: '#6366F1', // Indigo to match Homepage
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#E11D48',
+        shadowColor: '#6366F1',
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.4,
-        shadowRadius: 16,
-        elevation: 10,
+        shadowRadius: 12,
+        elevation: 8,
     },
 });
 
