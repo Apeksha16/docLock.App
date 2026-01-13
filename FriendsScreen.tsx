@@ -21,9 +21,10 @@ import { firestoreService } from './services/firestoreService';
 interface FriendsScreenProps {
     onNavigate: (screen: 'dashboard' | 'friends' | 'profile') => void;
     userId?: string;
+    userProfile?: any; // Added prop
 }
 
-export default function FriendsScreen({ onNavigate, userId }: FriendsScreenProps) {
+export default function FriendsScreen({ onNavigate, userId, userProfile }: FriendsScreenProps) {
     // const { width } = useWindowDimensions();
 
     const scale = useSharedValue(1);
@@ -93,7 +94,7 @@ export default function FriendsScreen({ onNavigate, userId }: FriendsScreenProps
         if (!selectedFriend || !userId || !requestItemName.trim()) return;
         setIsProcessing(true);
         try {
-            await firestoreService.sendRequest(userId, selectedFriend.id, type, requestItemName);
+            await firestoreService.sendRequest(userId, selectedFriend.id, selectedFriend.fullName || selectedFriend.name || 'Friend', type, requestItemName);
             if (type === 'document') setRequestDocVisible(false);
             else setRequestCardVisible(false);
         } catch (error) {
@@ -193,7 +194,7 @@ export default function FriendsScreen({ onNavigate, userId }: FriendsScreenProps
                                 <View style={[styles.statIconBox, { backgroundColor: '#DCFCE7' }]}>
                                     <Feather name="send" size={20} color="#10B981" />
                                 </View>
-                                <Text style={styles.statNumber}>0</Text>
+                                <Text style={styles.statNumber}>{userProfile?.activeRequestsCount || 0}</Text>
                                 <Text style={styles.statLabel}>Active{'\n'}Requests</Text>
                             </View>
                         </View>
@@ -897,7 +898,7 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: '#0F172A',
         marginBottom: 12,
-        alignSelf: 'flex-start',
+        textAlign: 'center', // Force center alignment
     },
     modalInput: {
         width: '100%',
@@ -908,6 +909,7 @@ const styles = StyleSheet.create({
         padding: 16,
         fontSize: 14,
         color: '#0F172A',
+        textAlign: 'center', // Center the input text
     },
     modalMainButton: {
         width: '100%',

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Dimensions, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Dimensions, ActivityIndicator, Alert, Modal } from 'react-native';
 import { Feather, FontAwesome5, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -50,35 +50,30 @@ export default function MyCardsScreen({ onNavigate, userId, cards }: MyCardsScre
         await Clipboard.setStringAsync(content);
         Alert.alert('Copied', `${label} copied to clipboard.`);
 
-        // Notify
-        // Since userId is available in props
-        if (userId) {
-            notificationService.sendNotification(userId, 'Card Shared', `You copied ${label} of a card to clipboard.`, 'system');
-        }
+        // Notify removed as per request
     };
 
-    const handleDelete = (cardId: string) => {
-        Alert.alert(
-            "Delete Card",
-            "Are you sure you want to delete this card?",
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Delete",
-                    style: "destructive",
-                    onPress: async () => {
-                        try {
-                            await firestoreService.deleteCard(userId, cardId); // Assuming deleteCard exists or implementing logic
-                            // Refresh list locally
-                            // setCards(prev => prev.filter(c => c.id !== cardId)); // Synced automatically now
-                            Alert.alert("Deleted", "Card has been removed.");
-                        } catch (error) {
-                            Alert.alert("Error", "Failed to delete card.");
-                        }
-                    }
-                }
-            ]
-        );
+    const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+    const [cardToDelete, setCardToDelete] = useState<any>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const openDeleteModal = (card: any) => {
+        setCardToDelete(card);
+        setDeleteModalVisible(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!cardToDelete || !userId) return;
+        setIsDeleting(true);
+        try {
+            await firestoreService.deleteCard(userId, cardToDelete.id);
+            setDeleteModalVisible(false);
+            setCardToDelete(null);
+        } catch (error) {
+            Alert.alert("Error", "Failed to delete card.");
+        } finally {
+            setIsDeleting(false);
+        }
     };
 
     const renderCardItem = (card: any) => {
@@ -106,7 +101,7 @@ export default function MyCardsScreen({ onNavigate, userId, cards }: MyCardsScre
                         <TouchableOpacity style={styles.iconButton} onPress={() => onNavigate('add-card', { cardData: card })}>
                             <Feather name="edit-2" size={14} color="rgba(255,255,255,0.7)" />
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.iconButton} onPress={() => handleDelete(card.id)}>
+                        <TouchableOpacity style={styles.iconButton} onPress={() => openDeleteModal(card)}>
                             <Feather name="trash-2" size={14} color="rgba(255,255,255,0.7)" />
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.iconButton} onPress={() => handleCopy(card.cardNumber, "Card Number")}>
@@ -222,6 +217,49 @@ export default function MyCardsScreen({ onNavigate, userId, cards }: MyCardsScre
                 </ScrollView>
 
             </SafeAreaView>
+
+            {/* Delete Confirmation Modal */}
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={deleteModalVisible}
+                onRequestClose={() => setDeleteModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <TouchableOpacity style={{ flex: 1 }} onPress={() => setDeleteModalVisible(false)} />
+                    <View style={styles.modalBottomSheet}>
+                        <View style={styles.modalHandle} />
+                        <View style={styles.modalIconContainer}>
+                            <Feather name="trash-2" size={24} color="#EF4444" />
+                        </View>
+                        <Text style={styles.modalTitle}>Delete Card?</Text>
+                        <Text style={styles.modalSubtitle}>
+                            Are you sure you want to delete <Text style={{ fontWeight: '700', color: '#0F172A' }}>{cardToDelete?.cardName}</Text>?
+                        </Text>
+                        <Text style={styles.modalWarning}>This action cannot be undone.</Text>
+
+                        <TouchableOpacity
+                            style={styles.modalDeleteButton}
+                            onPress={confirmDelete}
+                            disabled={isDeleting}
+                        >
+                            {isDeleting ? (
+                                <ActivityIndicator color="white" />
+                            ) : (
+                                <Text style={styles.modalDeleteButtonText}>Yes, Delete</Text>
+                            )}
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.modalCancelButton}
+                            onPress={() => setDeleteModalVisible(false)}
+                            disabled={isDeleting}
+                        >
+                            <Text style={styles.modalCancelButtonText}>Cancel</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
 
             {/* FAB Button for Add Card */}
             <View style={styles.fabWrapper}>
@@ -458,6 +496,74 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.4,
         shadowRadius: 12,
         elevation: 8,
+    },
+    // Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalBottomSheet: {
+        backgroundColor: 'white',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        padding: 24,
+        alignItems: 'center',
+        paddingBottom: 40,
+    },
+    modalHandle: {
+        width: 40,
+        height: 4,
+        backgroundColor: '#E2E8F0',
+        borderRadius: 2,
+        marginBottom: 20,
+    },
+    modalIconContainer: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: '#FEE2E2',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#0F172A',
+        marginBottom: 8,
+    },
+    modalSubtitle: {
+        fontSize: 14,
+        color: '#64748B',
+        textAlign: 'center',
+        marginBottom: 8,
+    },
+    modalWarning: {
+        fontSize: 12,
+        color: '#EF4444',
+        marginBottom: 24,
+    },
+    modalDeleteButton: {
+        width: '100%',
+        backgroundColor: '#EF4444',
+        paddingVertical: 16,
+        borderRadius: 14,
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    modalDeleteButtonText: {
+        color: 'white',
+        fontWeight: '700',
+        fontSize: 16,
+    },
+    modalCancelButton: {
+        paddingVertical: 12,
+    },
+    modalCancelButtonText: {
+        color: '#64748B',
+        fontWeight: '600',
+        fontSize: 16,
     },
 });
 

@@ -176,7 +176,7 @@ export default function App() {
           userId={user?.uid}
         />;
       case 'friends':
-        return <FriendsScreen onNavigate={(screen) => handleNavigate(screen)} userId={user?.uid} />;
+        return <FriendsScreen onNavigate={(screen) => handleNavigate(screen)} userId={user?.uid} userProfile={userProfile} />;
       case 'profile':
         return <ProfileScreen
           userProfile={userProfile}

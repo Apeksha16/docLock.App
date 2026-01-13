@@ -33,7 +33,7 @@ const TABS = [
         label: 'Profile',
         icon: 'account',
         iconOutline: 'account-outline',
-        color: '#0D9488' // Teal 600 (Darker for better contrast on white text)
+        color: '#2DD4BF' // Teal 400 to match Profile Screen
     },
 ];
 

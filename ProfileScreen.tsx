@@ -183,14 +183,7 @@ export default function ProfileScreen({ onNavigate, userProfile, appConfig, user
     // Calculate Storage Percentage
     // appConfig.maxStorageLimit is in Bytes (e.g., 209715200 for 200MB)
     // userProfile.storageUsed is assumed to be in Bytes for consistency
-    const totalStorageBytes = appConfig?.maxStorageLimit || 209715200; // Default 200MB in bytes
-    const usedStorageBytes = userProfile?.storageUsed || 0;
 
-    const totalStorageMB = (totalStorageBytes / (1024 * 1024)).toFixed(0);
-    const usedStorageMB = (usedStorageBytes / (1024 * 1024)).toFixed(2); // Show 2 decimal places for small files
-
-    const storagePercent = Math.min((usedStorageBytes / totalStorageBytes) * 100, 100).toFixed(1);
-    const storageLeftPercent = (100 - Number(storagePercent)).toFixed(1);
 
     return (
         <View style={styles.container}>
@@ -258,30 +251,7 @@ export default function ProfileScreen({ onNavigate, userProfile, appConfig, user
                                 <Text style={styles.userMobile}>{userProfile?.mobile || ''}</Text>
                             </View>
 
-                            <View style={styles.statsRow}>
-                                <View style={styles.statItem}>
-                                    <Text style={styles.statValue}>{userProfile?.documentsCount || 0}</Text>
-                                    <Text style={styles.statLabel}>TOTAL DOCS</Text>
-                                </View>
-                                <View style={styles.statDivider} />
-                                <View style={styles.statItem}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-                                        <Text style={styles.statValue}>{storagePercent}</Text>
-                                        <Text style={styles.statPercent}>%</Text>
-                                    </View>
-                                    <Text style={styles.statLabel}>USED</Text>
-                                </View>
-                            </View>
 
-                            <View style={styles.storageBarContainer}>
-                                <View style={styles.storageBarTrack}>
-                                    <View style={[styles.storageBarFill, { width: `${storagePercent}%` as any }]} />
-                                </View>
-                                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                    <Text style={styles.storageText}>{usedStorageMB} MB / {totalStorageMB} MB</Text>
-                                    <Text style={styles.storageText}>Left: {storageLeftPercent}%</Text>
-                                </View>
-                            </View>
 
                             {/* Decorative dots */}
                             <View style={[styles.dotDecoration, { top: 16, right: 16, opacity: 0.3 }]} />
@@ -496,61 +466,7 @@ const styles = StyleSheet.create({
         color: '#CCFBF1', // Teal 100
         fontWeight: '600',
     },
-    statsRow: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 24,
-    },
-    statItem: {
-        alignItems: 'center',
-        minWidth: 80,
-    },
-    statValue: {
-        fontSize: 24,
-        fontWeight: '800',
-        color: '#FFFFFF',
-    },
-    statPercent: {
-        fontSize: 14,
-        fontWeight: '800',
-        color: '#FFFFFF',
-        marginTop: 6,
-        marginLeft: 2,
-    },
-    statLabel: {
-        fontSize: 10,
-        fontWeight: '700',
-        color: '#CCFBF1',
-        letterSpacing: 1,
-        marginTop: 4,
-    },
-    statDivider: {
-        width: 1,
-        height: 30,
-        backgroundColor: 'rgba(255, 255, 255, 0.3)',
-        marginHorizontal: 20,
-    },
-    storageBarContainer: {
-        width: '100%',
-    },
-    storageBarTrack: {
-        height: 6,
-        backgroundColor: 'rgba(0, 0, 0, 0.2)',
-        borderRadius: 3,
-        marginBottom: 8,
-    },
-    storageBarFill: {
-        height: '100%',
-        backgroundColor: '#FFFFFF',
-        borderRadius: 3,
-    },
-    storageText: {
-        fontSize: 10,
-        color: '#CCFBF1',
-        textAlign: 'right',
-        fontWeight: '600',
-    },
+
     dotDecoration: {
         position: 'absolute',
         width: 8,

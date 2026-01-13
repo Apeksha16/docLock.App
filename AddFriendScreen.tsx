@@ -92,7 +92,7 @@ export default function AddFriendScreen({ onBack, onNavigate, userId }: AddFrien
         <View style={styles.container}>
             <StatusBar barStyle="dark-content" />
             <LinearGradient
-                colors={['#FFF5F9', '#FFFFFF']}
+                colors={['#FFFBEB', '#FFFFFF']}
                 style={StyleSheet.absoluteFillObject}
             />
             <SafeAreaView style={{ flex: 1 }}>
@@ -107,12 +107,12 @@ export default function AddFriendScreen({ onBack, onNavigate, userId }: AddFrien
                 <View style={styles.addFriendContent}>
                     <View style={styles.centerIconContainer}>
                         {/* ... (Existing blob view) ... */}
-                        <View style={[styles.blobFloating, { top: 40, left: -100, width: 18, height: 18, backgroundColor: '#F472B6' }]} />
-                        <View style={[styles.blobFloating, { top: 100, left: -80, width: 24, height: 24, backgroundColor: '#FBCFE8' }]} />
-                        <View style={[styles.blobFloating, { top: -20, right: -90, width: 20, height: 20, backgroundColor: '#FBCFE8' }]} />
+                        <View style={[styles.blobFloating, { top: 40, left: -100, width: 18, height: 18, backgroundColor: '#FBBF24' }]} />
+                        <View style={[styles.blobFloating, { top: 100, left: -80, width: 24, height: 24, backgroundColor: '#FDE68A' }]} />
+                        <View style={[styles.blobFloating, { top: -20, right: -90, width: 20, height: 20, backgroundColor: '#FDE68A' }]} />
 
                         <LinearGradient
-                            colors={['#F472B6', '#EC4899']}
+                            colors={['#FBBF24', '#F9A828']}
                             style={styles.centerIconGradient}
                         >
                             <Feather name="user-plus" size={32} color="#FFFFFF" />
@@ -146,18 +146,13 @@ export default function AddFriendScreen({ onBack, onNavigate, userId }: AddFrien
                     </View>
 
                     <TouchableOpacity style={styles.submitButton} onPress={handleSearch} disabled={isLoading}>
-                        <LinearGradient
-                            colors={['#F472B6', '#DB2777']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                            style={styles.submitButtonGradient}
-                        >
+                        <View style={[styles.submitButtonGradient, { backgroundColor: '#F9A828' }]}>
                             {isLoading ? (
                                 <ActivityIndicator color="#FFFFFF" />
                             ) : (
                                 <Text style={styles.submitButtonText}>Add Friend</Text>
                             )}
-                        </LinearGradient>
+                        </View>
                     </TouchableOpacity>
                 </View>
             </SafeAreaView>
@@ -179,15 +174,15 @@ export default function AddFriendScreen({ onBack, onNavigate, userId }: AddFrien
                         {/* Updated Avatar with Pink Gradient Ring maybe? Keeping simple for now to match screenshot 1 roughly */}
                         <View style={styles.avatarContainer}>
                             <LinearGradient
-                                colors={['#F472B6', '#EC4899']}
+                                colors={['#FBBF24', '#F9A828']}
                                 style={{ padding: 3, borderRadius: 53 }}
                             >
                                 <View style={{ backgroundColor: 'white', padding: 2, borderRadius: 50 }}>
                                     {foundUser?.photoURL ? (
                                         <Image source={{ uri: foundUser.photoURL }} style={styles.modalAvatar} />
                                     ) : (
-                                        <View style={[styles.modalAvatar, { backgroundColor: '#FCE7F3', justifyContent: 'center', alignItems: 'center' }]}>
-                                            <Feather name="user" size={40} color="#EC4899" />
+                                        <View style={[styles.modalAvatar, { backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center' }]}>
+                                            <Feather name="user" size={40} color="#F9A828" />
                                         </View>
                                     )}
                                 </View>
@@ -196,7 +191,7 @@ export default function AddFriendScreen({ onBack, onNavigate, userId }: AddFrien
 
                         <Text style={styles.foundThemTitle}>Found Them! ✨</Text>
                         <Text style={styles.modalQuestion}>
-                            You're about to add <Text style={{ fontWeight: '800', color: '#EC4899' }}>{foundUser?.fullName || foundUser?.name || 'this user'}</Text> to your secure circle. Ready to start sharing?
+                            You're about to add <Text style={{ fontWeight: '800', color: '#F9A828' }}>{foundUser?.fullName || foundUser?.name || 'this user'}</Text> to your secure circle. Ready to start sharing?
                         </Text>
 
                         {/* Vertical Buttons as per screenshot 1 */}
@@ -206,10 +201,7 @@ export default function AddFriendScreen({ onBack, onNavigate, userId }: AddFrien
                                 onPress={handleConfirmAdd}
                                 disabled={isAdding}
                             >
-                                <LinearGradient
-                                    colors={['#F472B6', '#DB2777']}
-                                    style={styles.gradientButton}
-                                >
+                                <View style={[styles.gradientButton, { backgroundColor: '#F9A828' }]}>
                                     {isAdding ? (
                                         <ActivityIndicator size="small" color="#FFFFFF" />
                                     ) : (
@@ -218,7 +210,7 @@ export default function AddFriendScreen({ onBack, onNavigate, userId }: AddFrien
                                             <Text style={styles.confirmButtonText}>Let's Connect</Text>
                                         </View>
                                     )}
-                                </LinearGradient>
+                                </View>
                             </TouchableOpacity>
 
                             <TouchableOpacity
@@ -305,7 +297,7 @@ const styles = StyleSheet.create({
         borderRadius: 24,
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#EC4899',
+        shadowColor: '#F9A828',
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.3,
         shadowRadius: 16,
@@ -364,7 +356,7 @@ const styles = StyleSheet.create({
         width: '100%',
         borderRadius: 16,
         overflow: 'hidden',
-        shadowColor: '#EC4899',
+        shadowColor: '#F9A828',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 12,
@@ -408,7 +400,7 @@ const styles = StyleSheet.create({
     navItemActive: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#EC4899',
+        backgroundColor: '#F9A828',
         paddingVertical: 10,
         paddingHorizontal: 20,
         borderRadius: 20,
@@ -506,7 +498,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
     },
     confirmButton: {
-        backgroundColor: '#EC4899',
+        backgroundColor: '#F9A828',
     },
     confirmButtonText: {
         color: '#FFFFFF',

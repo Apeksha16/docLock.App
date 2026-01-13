@@ -13,6 +13,48 @@ interface NotificationScreenProps {
     userId?: string;
 }
 
+const formatRelativeTime = (timestamp: any) => {
+    if (!timestamp) return 'Now';
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+
+    if (diff < 0) return 'Just now';
+
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (seconds < 60) return 'Just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    if (days < 7) return `${days}d ago`;
+    return date.toLocaleDateString();
+};
+
+const TimeAgo = ({ timestamp }: { timestamp: any }) => {
+    const [timeString, setTimeString] = React.useState(formatRelativeTime(timestamp));
+
+    React.useEffect(() => {
+        // Update immediately
+        setTimeString(formatRelativeTime(timestamp));
+
+        // Update every 30 seconds
+        const interval = setInterval(() => {
+            setTimeString(formatRelativeTime(timestamp));
+        }, 30000);
+
+        return () => clearInterval(interval);
+    }, [timestamp]);
+
+    return (
+        <Text style={styles.timeText}>
+            {timeString}
+        </Text>
+    );
+};
+
 const NotificationItem = ({ item, onToggleRead, onDelete }: { item: any, onToggleRead: () => void, onDelete: () => void }) => {
     const swipeableRef = useRef<Swipeable>(null);
 
@@ -71,9 +113,7 @@ const NotificationItem = ({ item, onToggleRead, onDelete }: { item: any, onToggl
                         <View style={styles.cardHeader}>
                             <Text style={styles.cardTitle}>{item.title}</Text>
                             <View style={styles.metaContainer}>
-                                <Text style={styles.timeText}>
-                                    {item.timestamp ? new Date(item.timestamp).toLocaleDateString() : 'Now'}
-                                </Text>
+                                <TimeAgo timestamp={item.timestamp} />
                                 {!item.read && <View style={styles.unreadDot} />}
                             </View>
                         </View>
@@ -141,7 +181,7 @@ export default function NotificationScreen({ onNavigate, notifications = [], use
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => onNavigate('dashboard')} style={styles.actionButton}>
-                    <Feather name="arrow-left" size={20} color="#64748B" />
+                    <Feather name="arrow-left" size={24} color="#1E293B" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Notifications</Text>
                 <View style={{ width: 40 }} />
@@ -217,11 +257,17 @@ const styles = StyleSheet.create({
         color: '#0F172A',
     },
     actionButton: {
-        width: 40,
-        height: 40,
+        width: 44,
+        height: 44,
+        borderRadius: 12,
+        backgroundColor: '#FFF',
         justifyContent: 'center',
         alignItems: 'center',
-        // Removed boxy styles
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 2,
     },
     scrollContent: {
         paddingHorizontal: 20,

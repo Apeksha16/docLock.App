@@ -50,6 +50,10 @@ const updateParentMetaCount = async (userId: string, parentId: string | null, in
 
 // Standalone Notification Helper
 const addNotificationHelper = async (userId: string, notification: { title: string, message: string, type: 'qr' | 'system' | 'alert' }) => {
+    if (!userId) {
+        console.warn("addNotificationHelper skipped: No userId provided.");
+        return;
+    }
     try {
         console.log("DEBUG: addNotificationHelper called", notification);
         const notifRef = collection(db, "users", userId, "notifications");
@@ -814,18 +818,24 @@ export const firestoreService = {
     /**
      * Send a request (Document or Card)
      */
-    sendRequest: async (requesterId: string, targetId: string, type: 'document' | 'card', item: string) => {
+    sendRequest: async (requesterId: string, targetId: string, targetName: string, type: 'document' | 'card', item: string) => {
         try {
-            loggerService.logRequest('firestoreService.sendRequest', { requesterId, targetId, type, item });
+            loggerService.logRequest('firestoreService.sendRequest', { requesterId, targetId, targetName, type, item });
 
-            // This is a placeholder log since we don't have a requests collection yet.
-            // In a real app, you would add a document to a 'requests' collection.
-            console.log(`[REQUEST SENT] From: ${requesterId}, To: ${targetId}, Type: ${type}, Item: ${item}`);
+            // 1. Increment Active Requests
+            const userRef = doc(db, "users", requesterId);
+            await updateDoc(userRef, {
+                activeRequestsCount: increment(1)
+            });
 
-            // Simulate network delay
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // 2. Add Notification (Local confirmation)
+            await addNotificationHelper(requesterId, {
+                title: 'Request Sent',
+                message: `You requested a ${type} (${item}) from ${targetName}.`,
+                type: 'system'
+            });
 
-            loggerService.logResponse('firestoreService.sendRequest', { success: true, mock: true });
+            loggerService.logResponse('firestoreService.sendRequest', { success: true });
         } catch (error) {
             loggerService.logApiError('firestoreService.sendRequest', error);
             throw error;
