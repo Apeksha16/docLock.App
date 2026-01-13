@@ -138,11 +138,11 @@ const styles = StyleSheet.create({
         width: 60,
         height: 60,
         borderRadius: 20,
-        backgroundColor: '#2DD4BF', // Teal 400
+        backgroundColor: '#0D9488', // Teal 600
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 16,
-        shadowColor: '#2DD4BF',
+        shadowColor: '#0D9488',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
         paddingVertical: 16,
         borderRadius: 16,
         alignItems: 'center',
-        shadowColor: '#2DD4BF',
+        shadowColor: '#0D9488',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,

@@ -226,7 +226,7 @@ export default function ProfileScreen({ onNavigate, userProfile, appConfig, user
                                 )}
                                 {isUploading && (
                                     <View style={styles.loadingOverlay}>
-                                        <ActivityIndicator color="#2DD4BF" />
+                                        <ActivityIndicator color="#0D9488" />
                                     </View>
                                 )}
                             </View>
@@ -236,7 +236,7 @@ export default function ProfileScreen({ onNavigate, userProfile, appConfig, user
                         </TouchableOpacity>
 
                         <LinearGradient
-                            colors={['#2DD4BF', '#14B8A6']} // Teal 400 to Teal 500
+                            colors={['#0D9488', '#0F766E']} // Teal 600 to Teal 700 (Secure Teal)
                             style={styles.profileCard}
                         >
                             <View style={styles.cardHeaderSpacer} />
@@ -267,8 +267,8 @@ export default function ProfileScreen({ onNavigate, userProfile, appConfig, user
                     <View style={styles.menuContainer}>
 
                         <TouchableOpacity style={styles.menuItem} onPress={() => setSecurityModalVisible(true)}>
-                            <View style={[styles.menuIconBox, { backgroundColor: '#E0F2FE' }]}>
-                                <Feather name="lock" size={20} color="#0EA5E9" />
+                            <View style={[styles.menuIconBox, { backgroundColor: '#CCFBF1' }]}>
+                                <Feather name="lock" size={20} color="#0F766E" />
                             </View>
                             <View style={styles.menuTextContainer}>
                                 <Text style={styles.menuTitle}>Security</Text>
@@ -280,8 +280,8 @@ export default function ProfileScreen({ onNavigate, userProfile, appConfig, user
                         {/* QR Code Button Removed Reqeusted by User */}
 
                         <TouchableOpacity style={styles.menuItem} onPress={() => onNavigate('about')}>
-                            <View style={[styles.menuIconBox, { backgroundColor: '#FFEDD5' }]}>
-                                <Feather name="info" size={20} color="#F97316" />
+                            <View style={[styles.menuIconBox, { backgroundColor: '#CCFBF1' }]}>
+                                <Feather name="info" size={20} color="#0F766E" />
                             </View>
                             <View style={styles.menuTextContainer}>
                                 <Text style={styles.menuTitle}>About DocLock</Text>
@@ -395,10 +395,10 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 12,
-        backgroundColor: '#2DD4BF', // Teal 400
+        backgroundColor: '#0D9488', // Teal 600
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#2DD4BF',
+        shadowColor: '#0D9488',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,

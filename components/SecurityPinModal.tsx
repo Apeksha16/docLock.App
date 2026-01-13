@@ -247,7 +247,7 @@ export default function SecurityPinModal({ visible, onClose, userId, mode = 'set
                                     <Text style={styles.keyText}>0</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity style={[styles.key, styles.backspaceKey]} onPress={handleBackspace} disabled={isLoading}>
-                                    <Feather name="delete" size={24} color="#6366F1" />
+                                    <Feather name="delete" size={24} color="#0D9488" />
                                 </TouchableOpacity>
                             </View>
                         </View>
