@@ -4,7 +4,10 @@ import { Feather, FontAwesome5, Ionicons, MaterialIcons } from '@expo/vector-ico
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { firestoreService } from './services/firestoreService';
+import { notificationService } from './services/notificationService'; // Added import
 import * as Clipboard from 'expo-clipboard';
+import { encryptionService } from './services/encryptionService';
+import BottomNavBar from './components/BottomNavBar';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.85;
@@ -12,31 +15,59 @@ const CARD_WIDTH = width * 0.85;
 interface MyCardsScreenProps {
     onNavigate: (screen: 'dashboard' | 'friends' | 'profile' | 'add-card', params?: any) => void;
     userId: string;
+    cards: any[];
 }
 
-export default function MyCardsScreen({ onNavigate, userId }: MyCardsScreenProps) {
-    const [cards, setCards] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        fetchCards();
-    }, [userId]);
+export default function MyCardsScreen({ onNavigate, userId, cards }: MyCardsScreenProps) {
+    const loading = false; // Data is preloaded
 
-    const fetchCards = async () => {
+
+
+
+    const formatDisplayCardNumber = (encryptedNumber: string) => {
         try {
-            if (!userId) return;
-            const userCards = await firestoreService.getCards(userId);
-            setCards(userCards);
-        } catch (error) {
-            console.error("Failed to fetch cards", error);
-        } finally {
-            setLoading(false);
+            const decrypted = encryptionService.decryptData(encryptedNumber);
+            if (!decrypted || decrypted.length < 8) return '•••• •••• •••• ••••'; // Fallback
+
+            const first4 = decrypted.slice(0, 4);
+            const last4 = decrypted.slice(-4);
+
+            return `${first4} ${decrypted.slice(4, -4).replace(/\d/g, '•').replace(/(.{4})/g, '$1 ')} ${last4}`.replace(/\s+/g, ' ').trim();
+            // Or simpler: just first 4 and last 4 with fixed dots if we don't care about precise length matching middle
+            // User requested: "full card number should be visible with starting four numbers and ending 4 numbers rest will be hidden"
+            // Example: 1234 •••• •••• 5678 (assuming 16 digits)
+
+            // Precise replacement:
+            const middle = decrypted.slice(4, -4);
+            const maskedMiddle = middle.replace(/\d/g, '•');
+            // Add spaces every 4 chars for readability
+            const formatted = `${first4}${maskedMiddle}${last4}`.match(/.{1,4}/g)?.join(' ') || '';
+            return formatted;
+        } catch (e) {
+            return '•••• •••• •••• ••••';
         }
     };
 
     const handleCopy = async (text: string, label: string) => {
-        await Clipboard.setStringAsync(text);
+        // We might want to copy the DECRYPTED text if user taps
+        // Text coming in might be encrypted if we pass card.cardNumber directly
+        // So let's handle decryption here if needed, or pass decrypted
+        let content = text;
+        // If it looks encrypted (long string), try decrypt. Or just standardized flow:
+        // Actually, handleCopy below is called with card.cardNumber which IS Encrypted in DB.
+        // So we should decrypt it before copying to clipboard.
+        const decrypted = encryptionService.decryptData(text);
+        if (decrypted) content = decrypted;
+
+        await Clipboard.setStringAsync(content);
         Alert.alert('Copied', `${label} copied to clipboard.`);
+
+        // Notify
+        // Since userId is available in props
+        if (userId) {
+            notificationService.sendNotification(userId, 'Card Shared', `You copied ${label} of a card to clipboard.`, 'system');
+        }
     };
 
     const handleDelete = (cardId: string) => {
@@ -52,7 +83,7 @@ export default function MyCardsScreen({ onNavigate, userId }: MyCardsScreenProps
                         try {
                             await firestoreService.deleteCard(userId, cardId); // Assuming deleteCard exists or implementing logic
                             // Refresh list locally
-                            setCards(prev => prev.filter(c => c.id !== cardId));
+                            // setCards(prev => prev.filter(c => c.id !== cardId)); // Synced automatically now
                             Alert.alert("Deleted", "Card has been removed.");
                         } catch (error) {
                             Alert.alert("Error", "Failed to delete card.");
@@ -100,7 +131,7 @@ export default function MyCardsScreen({ onNavigate, userId }: MyCardsScreenProps
 
                 {/* Number */}
                 <TouchableOpacity onPress={() => handleCopy(card.cardNumber, "Card Number")}>
-                    <Text style={styles.cardNumber}>{card.cardNumberMasked ? card.cardNumberMasked.replace(/\*/g, '•') : '•••• •••• •••• 0000'}</Text>
+                    <Text style={styles.cardNumber}>{formatDisplayCardNumber(card.cardNumber)}</Text>
                 </TouchableOpacity>
 
                 {/* Details Footer */}
@@ -113,7 +144,7 @@ export default function MyCardsScreen({ onNavigate, userId }: MyCardsScreenProps
                     <View style={{ flexDirection: 'row', gap: 24 }}>
                         <View>
                             <Text style={styles.detailLabel}>EXPIRES</Text>
-                            <Text style={styles.detailValue}>{card.expiry}</Text>
+                            <Text style={styles.detailValue}>{encryptionService.decryptData(card.expiry) || 'MM/YY'}</Text>
                         </View>
                         <View>
                             <Text style={styles.detailLabel}>CVV</Text>
@@ -207,25 +238,8 @@ export default function MyCardsScreen({ onNavigate, userId }: MyCardsScreenProps
                     </ScrollView>
                 )}
 
-                {/* Bottom Navigation Bar */}
-                {/* Bottom Navigation Bar */}
-                <View style={styles.bottomNavContainer}>
-                    <View style={styles.bottomNav}>
-                        <TouchableOpacity style={styles.navItemActive}>
-                            <Ionicons name="home" size={20} color="#FFFFFF" />
-                            <Text style={styles.navTextActive}>Home</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('friends')}>
-                            <FontAwesome5 name="user-friends" size={20} color="#94A3B8" />
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('profile')}>
-                            <FontAwesome5 name="user" size={20} color="#94A3B8" />
-                        </TouchableOpacity>
-                    </View>
-                </View>
-
+                {/* Shared Bottom Navigation Bar */}
+                <BottomNavBar currentScreen="my-cards" onNavigate={(screen: any) => onNavigate(screen)} />
             </SafeAreaView>
         </View>
     );
@@ -443,42 +457,5 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
 
-    // Bottom Nav (Pill)
-    bottomNavContainer: {
-        position: 'absolute',
-        bottom: 30,
-        alignSelf: 'center',
-    },
-    bottomNav: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#FFFFFF',
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 30,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.1,
-        shadowRadius: 20,
-        elevation: 10,
-        gap: 20,
-    },
-    navItem: {
-        padding: 10,
-    },
-    navItemActive: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#6366F1', // Indigo 500 (Homepage Style)
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 20,
-        gap: 8,
-    },
-    navTextActive: {
-        color: '#FFFFFF',
-        fontWeight: '700',
-        fontSize: 14,
-    },
 });
 

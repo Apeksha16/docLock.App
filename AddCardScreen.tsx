@@ -5,6 +5,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { firestoreService } from './services/firestoreService';
+import { encryptionService } from './services/encryptionService';
+import BottomNavBar from './components/BottomNavBar';
 
 const { width } = Dimensions.get('window');
 
@@ -21,17 +23,23 @@ export default function AddCardScreen({ onNavigate, userId, cardToEdit }: AddCar
     const [loading, setLoading] = useState(false);
 
     // Form inputs
-    // Form inputs initialized with cardToEdit if available
-    const [cardType, setCardType] = useState<'debit' | 'credit'>(cardToEdit?.cardType || 'debit');
-    const [cardName, setCardName] = useState(cardToEdit?.cardName || '');
-    const [cardNumber, setCardNumber] = useState(cardToEdit?.cardNumber || '');
-    const [holderName, setHolderName] = useState(cardToEdit?.holderName || 'NEW USER');
-    const [expiry, setExpiry] = useState(cardToEdit?.expiry || '');
-    const [cvv, setCvv] = useState(''); // CVV usually not stored or needs re-entry for security, but assuming stored for now or empty
+    const [cardType, setCardType] = useState<'debit' | 'credit'>('debit');
+    const [cardName, setCardName] = useState('');
+    const [cardNumber, setCardNumber] = useState('');
+    const [holderName, setHolderName] = useState('NEW USER');
+    const [expiry, setExpiry] = useState('');
+    const [cvv, setCvv] = useState('');
 
     // Real-time Validation State: 'neutral' | 'valid' | 'invalid'
     const [numValidation, setNumValidation] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
     const [dateValidation, setDateValidation] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
+
+    // Helper functions need to be defined before usage or useEffect
+    const formatCardNumber = (text: string) => {
+        const clean = text.replace(/\D/g, '');
+        const groups = clean.match(/.{1,4}/g);
+        return groups ? groups.join(' ') : clean;
+    };
 
     const validateLuhnCheck = (num: string) => {
         const digits = num.replace(/\D/g, '');
@@ -49,6 +57,76 @@ export default function AddCardScreen({ onNavigate, userId, cardToEdit }: AddCar
         return (sum % 10 === 0);
     };
 
+    // Initialize state with cardToEdit using useEffect
+    useEffect(() => {
+        if (cardToEdit) {
+            console.log("useEffect: cardToEdit detected. Initializing form for edit.", cardToEdit);
+            setLoading(true); // temporary visual cue if needed, or just set data
+            try {
+                setCardType(cardToEdit.cardType || 'debit');
+                setCardName(cardToEdit.cardName || '');
+                setHolderName(cardToEdit.holderName || 'NEW USER');
+                console.log(`useEffect: Set cardType: ${cardToEdit.cardType}, cardName: ${cardToEdit.cardName}, holderName: ${cardToEdit.holderName}`);
+
+                // Check if this is a legacy card with missing encrypted data
+                const hasEncryptedData = cardToEdit.cardNumber && cardToEdit.cardNumber.trim() !== '';
+
+                if (!hasEncryptedData) {
+                    // Legacy card - encrypted fields are missing
+                    console.log("useEffect: Legacy card detected with missing encrypted data.");
+                    Alert.alert(
+                        "Card Data Unavailable",
+                        "This card was created before encryption was implemented. Sensitive details (card number, expiry, CVV) are not available for editing. Please delete this card and add it again.",
+                        [{ text: "OK" }]
+                    );
+                    setLoading(false);
+                    return;
+                }
+
+                // Decrypt
+                if (cardToEdit.cardNumber) {
+                    const decryptedNum = encryptionService.decryptData(cardToEdit.cardNumber);
+                    console.log("useEffect: Decrypted card number.");
+                    setCardNumber(formatCardNumber(decryptedNum));
+
+                    if (decryptedNum.length >= 13 && validateLuhnCheck(decryptedNum)) {
+                        setNumValidation('valid');
+                    }
+                }
+
+                if (cardToEdit.expiry) {
+                    const decryptedExpiry = encryptionService.decryptData(cardToEdit.expiry);
+                    console.log("useEffect: Decrypted expiry.");
+                    setExpiry(decryptedExpiry);
+                    setDateValidation('valid');
+                }
+
+                if (cardToEdit.cvv) {
+                    const decryptedCvv = encryptionService.decryptData(cardToEdit.cvv);
+                    console.log("useEffect: Decrypted CVV.");
+                    setCvv(decryptedCvv);
+                }
+            } catch (e) {
+                console.error("Error decrypting card for edit", e);
+                Alert.alert("Error", "Could not decrypt card details.");
+            } finally {
+                setLoading(false);
+                console.log("useEffect: Card edit initialization complete.");
+            }
+        } else {
+            console.log("useEffect: No cardToEdit. Resetting form for new card.");
+            // Reset for Add New (if component is reused)
+            setCardType('debit');
+            setCardName('');
+            setCardNumber('');
+            setHolderName('NEW USER');
+            setExpiry('');
+            setCvv('');
+            setNumValidation('neutral');
+            setDateValidation('neutral');
+        }
+    }, [cardToEdit]);
+
     const getBorderColor = (status: 'neutral' | 'valid' | 'invalid') => {
         if (status === 'valid') return '#22C55E'; // Green
         if (status === 'invalid') return '#EF4444'; // Red
@@ -64,12 +142,6 @@ export default function AddCardScreen({ onNavigate, userId, cardToEdit }: AddCar
         if (/^(60|65|81|82|508)/.test(clean)) return 'RUPAY';
         if (/^3[47]/.test(clean)) return 'AMEX';
         return 'CARD';
-    };
-
-    const formatCardNumber = (text: string) => {
-        const clean = text.replace(/\D/g, '');
-        const groups = clean.match(/.{1,4}/g);
-        return groups ? groups.join(' ') : clean;
     };
 
     const handleCardNameChange = (text: string) => {
@@ -99,6 +171,12 @@ export default function AddCardScreen({ onNavigate, userId, cardToEdit }: AddCar
 
         let clean = text.replace(/\D/g, '');
         if (clean.length > 4) clean = clean.slice(0, 4);
+
+        // Smart month entry: if first digit is > 3, auto-prepend 0
+        // e.g., typing "4" becomes "04", "9" becomes "09"
+        if (clean.length === 1 && parseInt(clean) > 3) {
+            clean = '0' + clean;
+        }
 
         // Validate Month
         if (clean.length >= 2) {
@@ -176,16 +254,6 @@ export default function AddCardScreen({ onNavigate, userId, cardToEdit }: AddCar
             Alert.alert('Invalid Expiry', 'Card expired too long ago.');
             return false;
         }
-        // If same year as minYear, allow all months (simplest interpretation of "year allowed")
-        // Or strictly: if future, checks month. If past but allowable year, do we care about month? 
-        // User said "year allowed will be upto 2024". 
-        // Let's assume broad year allowance. 
-        // But if year == currentYear, we might want to ensure month is valid? 
-        // Usually, if year < currentYear (but > minYear), it's expired but "allowed".
-        // Submit validation usually checks if it's *valid for use* (future). 
-        // But user constraint overrides this.
-        // Let's just ensure it's not OLDER than minYear.
-        // If same year, month must be >= current month
         if (expYear === currentYear && expMonth < currentMonth) {
             Alert.alert('Invalid Expiry', 'Card has expired.');
             return false;
@@ -227,6 +295,15 @@ export default function AddCardScreen({ onNavigate, userId, cardToEdit }: AddCar
                 expiry,
                 cvv
             };
+
+            console.log("handleAddCard: Sending card data to service:", {
+                cardType: cardData.cardType,
+                cardName: cardData.cardName,
+                cardNumberLength: cardData.cardNumber?.length,
+                expiryValue: cardData.expiry,
+                cvvLength: cardData.cvv?.length,
+                holderName: cardData.holderName
+            });
 
             if (cardToEdit) {
                 await firestoreService.updateCard(userId, cardToEdit.id, cardData);
@@ -292,7 +369,7 @@ export default function AddCardScreen({ onNavigate, userId, cardToEdit }: AddCar
                 >
                     {/* Header */}
                     <View style={styles.header}>
-                        <TouchableOpacity onPress={() => onNavigate('dashboard')} style={styles.backButton}>
+                        <TouchableOpacity onPress={() => onNavigate(cardToEdit ? 'my-cards' : 'dashboard')} style={styles.backButton}>
                             <Feather name="arrow-left" size={24} color="#1E293B" />
                         </TouchableOpacity>
                         <Text style={styles.headerTitle}>{cardToEdit ? 'Edit Card' : 'Add New Card'}</Text>
@@ -367,8 +444,8 @@ export default function AddCardScreen({ onNavigate, userId, cardToEdit }: AddCar
                                 )}
                             </View>
 
-                            {/* Scan Trigger Button (Minimal) */}
-                            {!isScanning && (
+                            {/* Scan Trigger Button (Minimal) - Only show when adding new card */}
+                            {!isScanning && !cardToEdit && (
                                 <TouchableOpacity onPress={startScan} activeOpacity={0.7} style={styles.scanTriggerButton}>
                                     <MaterialCommunityIcons name="line-scan" size={20} color="#F59E0B" />
                                     <Text style={styles.scanTriggerText}>Scan Card</Text>
@@ -475,20 +552,8 @@ export default function AddCardScreen({ onNavigate, userId, cardToEdit }: AddCar
                     </ScrollView>
                 </KeyboardAvoidingView>
 
-                {/* Bottom Navigation Bar */}
-                <View style={styles.bottomNavContainer}>
-                    <View style={styles.bottomNav}>
-                        <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('dashboard')}>
-                            <Ionicons name="home" size={20} color="#94A3B8" />
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('friends')}>
-                            <FontAwesome5 name="user-friends" size={20} color="#94A3B8" />
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('profile')}>
-                            <FontAwesome5 name="user" size={20} color="#94A3B8" />
-                        </TouchableOpacity>
-                    </View>
-                </View>
+                {/* Shared Bottom Navigation Bar */}
+                <BottomNavBar currentScreen="my-cards" onNavigate={(screen: any) => onNavigate(screen)} />
             </SafeAreaView>
         </View>
     );
@@ -565,8 +630,6 @@ const styles = StyleSheet.create({
     footerValue: { color: '#FFFFFF', fontSize: 11, fontWeight: '600', textTransform: 'uppercase' },
 
     // Scan Trigger Button
-
-    // Scan Trigger Button (Minimal)
     scanTriggerButton: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -645,13 +708,4 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3, shadowRadius: 8, elevation: 5, marginTop: 10,
     },
     addCardButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
-
-    // Bottom Nav
-    bottomNavContainer: { position: 'absolute', bottom: 30, left: 0, right: 0, alignItems: 'center' },
-    bottomNav: {
-        flexDirection: 'row', backgroundColor: '#FFFFFF', paddingVertical: 10, paddingHorizontal: 20,
-        borderRadius: 30, shadowColor: '#000', shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.1, shadowRadius: 20, elevation: 10, gap: 30,
-    },
-    navItem: { padding: 10 },
 });

@@ -47,10 +47,12 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [cards, setCards] = useState<any[]>([]);
   const [appConfig, setAppConfig] = useState<any>(null);
 
   const profileUnsubRef = useRef<(() => void) | null>(null);
   const notifsUnsubRef = useRef<(() => void) | null>(null);
+  const cardsUnsubRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     // Auth Listener
@@ -64,13 +66,18 @@ export default function App() {
         notifsUnsubRef.current();
         notifsUnsubRef.current = null;
       }
+      if (cardsUnsubRef.current) {
+        cardsUnsubRef.current();
+        cardsUnsubRef.current = null;
+      }
 
       setUser(currentUser);
 
       if (currentUser) {
-        // 2. Fetch App Config (Once)
-        const config = await firestoreService.getAppConfig();
-        setAppConfig(config);
+        // 2. Fetch App Config (Non-blocking)
+        firestoreService.getAppConfig().then((config) => {
+          setAppConfig(config);
+        });
 
         // 3. Subscribe to Profile
         profileUnsubRef.current = firestoreService.subscribeToUserProfile(currentUser.uid, (data) => {
@@ -81,10 +88,16 @@ export default function App() {
         notifsUnsubRef.current = notificationService.subscribeToNotifications(currentUser.uid, (notifs) => {
           setNotifications(notifs);
         });
+
+        // 5. Subscribe to Cards
+        cardsUnsubRef.current = firestoreService.subscribeToCards(currentUser.uid, (data) => {
+          setCards(data);
+        });
       } else {
         // User logged out
         setUserProfile(null);
         setNotifications([]);
+        setCards([]);
         setAppConfig(null);
         setCurrentScreen('login');
       }
@@ -150,6 +163,7 @@ export default function App() {
         return <DashboardScreen
           userProfile={userProfile}
           notifications={notifications}
+          cards={cards}
           appConfig={appConfig}
           onNavigate={(screen) => handleNavigate(screen)}
         />;
@@ -171,7 +185,7 @@ export default function App() {
       case 'secure-qr':
         return <SecureQRScreen onNavigate={(screen) => handleNavigate(screen)} userId={user?.uid} />;
       case 'my-cards':
-        return <MyCardsScreen onNavigate={(screen) => handleNavigate(screen)} userId={user?.uid || ''} />;
+        return <MyCardsScreen onNavigate={(screen, params) => handleNavigate(screen, params)} userId={user?.uid || ''} cards={cards} />;
       case 'add-card':
         return <AddCardScreen onNavigate={(screen) => handleNavigate(screen)} userId={user?.uid || ''} cardToEdit={cardToEdit} />;
       case 'my-documents':

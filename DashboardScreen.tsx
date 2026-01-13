@@ -9,9 +9,10 @@ interface DashboardScreenProps {
     userProfile?: any;
     notifications?: any[];
     appConfig?: any;
+    cards?: any[];
 }
 
-export default function DashboardScreen({ onNavigate, userProfile, notifications = [], appConfig }: DashboardScreenProps) {
+export default function DashboardScreen({ onNavigate, userProfile, notifications = [], appConfig, cards = [] }: DashboardScreenProps) {
     const { width } = useWindowDimensions();
     const isTablet = width > 768;
 
@@ -28,7 +29,7 @@ export default function DashboardScreen({ onNavigate, userProfile, notifications
     // In a real app, userProfile might have a cardsCount field too, 
     // or we might calculate it from a cards collection subscribe (not done yet).
     // For now mocking 'cardsCount' from profile or 0.
-    const usedCards = userProfile?.cardsCount || 0;
+    const usedCards = cards?.length || userProfile?.cardsCount || 0;
     const cardsPercent = Math.min((usedCards / maxCards) * 100, 100).toFixed(0);
 
     // --- QR Stats ---
@@ -247,7 +248,7 @@ export default function DashboardScreen({ onNavigate, userProfile, notifications
                             <MaterialCommunityIcons name="file-document-outline" size={24} color="#4F46E5" />
                         </View>
                         <Text style={styles.gridLabel}>Documents</Text>
-                        <Text style={styles.gridSubLabel}>{userProfile?.documentsCount || 0} Files</Text>
+
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.gridItem} onPress={() => onNavigate('my-cards')}>
@@ -255,7 +256,7 @@ export default function DashboardScreen({ onNavigate, userProfile, notifications
                             <MaterialCommunityIcons name="credit-card-outline" size={24} color="#EC4899" />
                         </View>
                         <Text style={styles.gridLabel}>Cards</Text>
-                        <Text style={styles.gridSubLabel}>0 Active</Text>
+
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.gridItem} onPress={() => onNavigate('secure-qr')}>
@@ -263,7 +264,6 @@ export default function DashboardScreen({ onNavigate, userProfile, notifications
                             <MaterialCommunityIcons name="qrcode" size={24} color="#F97316" />
                         </View>
                         <Text style={styles.gridLabel}>QRs</Text>
-                        <Text style={styles.gridSubLabel}>Synced</Text>
                     </TouchableOpacity>
                 </View>
 

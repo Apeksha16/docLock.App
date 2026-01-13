@@ -536,12 +536,27 @@ export const firestoreService = {
             loggerService.logRequest('firestoreService.addCard', { userId, cardType: cardData.cardType });
 
             // 1. Encrypt Sensitive Data
-            console.log("DEBUG: Encrypting data...");
+            console.log("DEBUG: addCard - Input data:", {
+                cardNumber: cardData.cardNumber ? `${cardData.cardNumber.length} chars` : 'EMPTY',
+                cvv: cardData.cvv ? `${cardData.cvv.length} chars` : 'EMPTY',
+                expiry: cardData.expiry || 'EMPTY'
+            });
+
+            const encryptedCardNumber = encryptionService.encryptData(String(cardData.cardNumber || ''));
+            const encryptedCvv = encryptionService.encryptData(String(cardData.cvv || ''));
+            const encryptedExpiry = encryptionService.encryptData(String(cardData.expiry || ''));
+
+            console.log("DEBUG: addCard - Encrypted results:", {
+                cardNumber: encryptedCardNumber ? `${encryptedCardNumber.length} chars` : 'EMPTY',
+                cvv: encryptedCvv ? `${encryptedCvv.length} chars` : 'EMPTY',
+                expiry: encryptedExpiry ? `${encryptedExpiry.length} chars` : 'EMPTY'
+            });
+
             const encryptedCard = {
                 ...cardData,
-                cardNumber: encryptionService.encryptData(String(cardData.cardNumber || '')),
-                cvv: encryptionService.encryptData(String(cardData.cvv || '')),
-                expiry: encryptionService.encryptData(String(cardData.expiry || '')),
+                cardNumber: encryptedCardNumber,
+                cvv: encryptedCvv,
+                expiry: encryptedExpiry,
                 // Keep some fields plaintext for use if needed
                 cardNumberMasked: String(cardData.cardNumber || '').slice(-4),
                 createdAt: new Date().toISOString()
@@ -604,6 +619,26 @@ export const firestoreService = {
     },
 
     /**
+     * Subscribe to user's cards (Realtime)
+     */
+    subscribeToCards: (userId: string, onUpdate: (cards: any[]) => void) => {
+        loggerService.logRequest('firestoreService.subscribeToCards', { userId });
+        const cardsRef = collection(db, "users", userId, "cards");
+        // Optional: Order by creation time if needed. Assuming default or client sort.
+        const unsubscribe = onSnapshot(cardsRef, (snapshot) => {
+            const cards = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            loggerService.logResponse('firestoreService.subscribeToCards', { count: cards.length });
+            onUpdate(cards);
+        }, (error) => {
+            loggerService.logApiError('firestoreService.subscribeToCards', error);
+        });
+        return unsubscribe;
+    },
+
+    /**
      * Delete a card
      */
     deleteCard: async (userId: string, cardId: string) => {
@@ -611,6 +646,14 @@ export const firestoreService = {
             loggerService.logRequest('firestoreService.deleteCard', { userId, cardId });
             const cardRef = doc(db, "users", userId, "cards", cardId);
             await deleteDoc(cardRef);
+
+            // Notify
+            await addNotificationHelper(userId, {
+                title: 'Card Deleted',
+                message: `Card has been removed from your vault.`,
+                type: 'alert'
+            });
+
             loggerService.logResponse('firestoreService.deleteCard', { success: true });
         } catch (error) {
             loggerService.logApiError('firestoreService.deleteCard', error);
@@ -625,10 +668,32 @@ export const firestoreService = {
         try {
             loggerService.logRequest('firestoreService.updateCard', { userId, cardId, cardData });
             const cardRef = doc(db, "users", userId, "cards", cardId);
-            await setDoc(cardRef, {
-                ...cardData,
-                updatedAt: new Date().toISOString()
-            }, { merge: true });
+
+            // Encrypt data if present in updates
+            const updates: any = { ...cardData };
+
+            if (updates.cardNumber) {
+                updates.cardNumber = encryptionService.encryptData(String(updates.cardNumber));
+                updates.cardNumberMasked = String(cardData.cardNumber).slice(-4);
+            }
+            if (updates.cvv) {
+                updates.cvv = encryptionService.encryptData(String(updates.cvv));
+            }
+            if (updates.expiry) {
+                updates.expiry = encryptionService.encryptData(String(updates.expiry));
+            }
+
+            updates.updatedAt = new Date().toISOString();
+
+            await setDoc(cardRef, updates, { merge: true });
+
+            // Notify
+            await addNotificationHelper(userId, {
+                title: 'Card Updated',
+                message: `Card "${cardData.cardName || 'Card'}" has been updated.`,
+                type: 'system'
+            });
+
             loggerService.logResponse('firestoreService.updateCard', { success: true });
         } catch (error) {
             loggerService.logApiError('firestoreService.updateCard', error);
