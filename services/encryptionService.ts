@@ -1,16 +1,5 @@
-import * as Crypto from 'expo-crypto';
 import CryptoJS from 'crypto-js';
 import { loggerService } from './loggerService';
-
-// Polyfill crypto.getRandomValues for CryptoJS in React Native
-if (typeof global.crypto === 'undefined') {
-    global.crypto = Crypto as any;
-}
-if (typeof global.crypto.getRandomValues === 'undefined') {
-    global.crypto.getRandomValues = ((array: any) => {
-        return Crypto.getRandomBytes(array.length);
-    }) as any;
-}
 
 // In a production app, the key should be retrieved from a secure key management system 
 // or derived from user credentials + salt.

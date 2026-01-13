@@ -7,6 +7,7 @@ import Swipeable from 'react-native-gesture-handler/Swipeable';
 import * as DocumentPicker from 'expo-document-picker';
 import { firestoreService } from './services/firestoreService';
 import { storageService } from './services/storageService';
+import BottomNavBar from './components/BottomNavBar';
 
 const { width, height } = Dimensions.get('window');
 
@@ -24,7 +25,6 @@ interface DocumentItem {
 }
 
 export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScreenProps) {
-    const [searchQuery, setSearchQuery] = useState('');
     const [documents, setDocuments] = useState<DocumentItem[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [folderStack, setFolderStack] = useState<{ id: string, name: string }[]>([]); // Navigation stack
@@ -284,101 +284,92 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
                     <View style={{ width: 44 }} />
                 </View>
 
-                {/* Search Bar */}
-                <View style={styles.searchContainer}>
-                    <Feather name="search" size={20} color="#94A3B8" style={styles.searchIcon} />
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder="Search documents..."
-                        placeholderTextColor="#94A3B8"
-                        value={searchQuery}
-                        onChangeText={(text) => {
-                            const filtered = text.replace(/[^a-zA-Z0-9 _-]/g, '');
-                            setSearchQuery(filtered);
-                        }}
-                    />
-                </View>
+
 
                 {/* Breadcrumb / Section Title */}
                 {/* SHOW BREADCRUMB ONLY IF NOT EMPTY ROOT or IF NAVIGATED */}
-                {(documents.length > 0 || currentFolderId !== null) && (
-                    <View style={styles.sectionHeader}>
-                        <View style={styles.breadcrumb}>
-                            <TouchableOpacity onPress={() => navigateToBreadcrumb(-1)}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                    <Ionicons name="home-outline" size={14} color="#64748B" />
-                                    <Text style={styles.breadcrumbText}>HOME</Text>
-                                </View>
-                            </TouchableOpacity>
+                {
+                    (documents.length > 0 || currentFolderId !== null) && (
+                        <View style={styles.sectionHeader}>
+                            <View style={styles.breadcrumb}>
+                                <TouchableOpacity onPress={() => navigateToBreadcrumb(-1)}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                        <Ionicons name="home-outline" size={14} color="#64748B" />
+                                        <Text style={styles.breadcrumbText}>HOME</Text>
+                                    </View>
+                                </TouchableOpacity>
 
-                            {folderStack.map((folder, index) => (
-                                <React.Fragment key={folder.id}>
-                                    <Feather name="chevron-right" size={12} color="#CBD5E1" />
-                                    <TouchableOpacity onPress={() => navigateToBreadcrumb(index)}>
-                                        <Text style={index === folderStack.length - 1 ? styles.breadcrumbActive : styles.breadcrumbText}>
-                                            {folder.name}
-                                        </Text>
-                                    </TouchableOpacity>
-                                </React.Fragment>
-                            ))}
+                                {folderStack.map((folder, index) => (
+                                    <React.Fragment key={folder.id}>
+                                        <Feather name="chevron-right" size={12} color="#CBD5E1" />
+                                        <TouchableOpacity onPress={() => navigateToBreadcrumb(index)}>
+                                            <Text style={index === folderStack.length - 1 ? styles.breadcrumbActive : styles.breadcrumbText}>
+                                                {folder.name}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </React.Fragment>
+                                ))}
+                            </View>
                         </View>
-                    </View>
-                )}
+                    )
+                }
 
 
                 {/* Content */}
-                {isLoading ? (
-                    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                        <ActivityIndicator size="large" color="#F97316" />
-                    </View>
-                ) : documents.length === 0 ? (
-                    <View style={styles.emptyStateContainer}>
-                        {/* Placeholder Icon */}
-                        <View style={styles.emptyIconContainer}>
-                            <LinearGradient
-                                colors={['#FB923C', '#EA580C']}
-                                style={styles.emptyIconGradient}
-                            >
-                                <Ionicons name="document-text-outline" size={48} color="white" />
-                            </LinearGradient>
-                            <View style={styles.emptyIconReflection} />
+                {
+                    isLoading ? (
+                        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                            <ActivityIndicator size="large" color="#1581BF" />
                         </View>
+                    ) : documents.length === 0 ? (
+                        <View style={styles.emptyStateContainer}>
+                            {/* Placeholder Icon */}
+                            <View style={styles.emptyIconContainer}>
+                                <LinearGradient
+                                    colors={['#3B82F6', '#1565A0']}
+                                    style={styles.emptyIconGradient}
+                                >
+                                    <Ionicons name="document-text-outline" size={48} color="white" />
+                                </LinearGradient>
+                                <View style={styles.emptyIconReflection} />
+                            </View>
 
-                        <Text style={styles.emptyTitle}>No Documents Found</Text>
-                        <Text style={styles.emptySubtitle}>
-                            Start by uploading your first document or creating a folder to organize your files
-                        </Text>
+                            <Text style={styles.emptyTitle}>No Documents Found</Text>
+                            <Text style={styles.emptySubtitle}>
+                                Start by uploading your first document or creating a folder to organize your files
+                            </Text>
 
-                        <View style={styles.actionButtonsColumn}>
-                            <TouchableOpacity
-                                style={styles.actionButtonSecondary}
-                                onPress={() => setCreateFolderVisible(true)}
-                            >
-                                <Feather name="folder" size={20} color="white" style={{ marginRight: 8 }} />
-                                <Text style={styles.actionButtonText}>Create Folder</Text>
-                            </TouchableOpacity>
+                            <View style={styles.actionButtonsColumn}>
+                                <TouchableOpacity
+                                    style={styles.actionButtonSecondary}
+                                    onPress={() => setCreateFolderVisible(true)}
+                                >
+                                    <Feather name="folder" size={20} color="white" style={{ marginRight: 8 }} />
+                                    <Text style={styles.actionButtonText}>Create Folder</Text>
+                                </TouchableOpacity>
 
-                            <TouchableOpacity
-                                style={styles.actionButtonPrimary}
-                                onPress={handleUpload}
-                            >
-                                <Feather name="upload" size={20} color="white" style={{ marginRight: 8 }} />
-                                <Text style={styles.actionButtonText}>Upload Document</Text>
-                            </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={styles.actionButtonPrimary}
+                                    onPress={handleUpload}
+                                >
+                                    <Feather name="upload" size={20} color="white" style={{ marginRight: 8 }} />
+                                    <Text style={styles.actionButtonText}>Upload Document</Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
-                    </View>
-                ) : (
-                    <FlatList
-                        data={documents}
-                        renderItem={renderDocumentItem}
-                        keyExtractor={item => item.id}
-                        contentContainerStyle={styles.listContent}
-                        showsVerticalScrollIndicator={false}
-                    />
-                )}
+                    ) : (
+                        <FlatList
+                            data={documents}
+                            renderItem={renderDocumentItem}
+                            keyExtractor={item => item.id}
+                            contentContainerStyle={styles.listContent}
+                            showsVerticalScrollIndicator={false}
+                        />
+                    )
+                }
 
 
-            </SafeAreaView>
+            </SafeAreaView >
 
             {/* Global Overlay for FAB - Close on outside click */}
             {
@@ -391,37 +382,34 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
                 )
             }
 
-            {/* Bottom Navigation Bar */}
-            {/* Moved outside SafeAreaView to handle zIndex correctly against Overlay */}
+            {/* FAB Menu and Shared Bottom Nav */}
             <View style={styles.bottomNavContainer}>
                 {documents.length > 0 && (
-                    <View style={styles.bottomNavWrapper}>
+                    <View style={styles.fabMenuWrapper}>
                         {isFabMenuOpen && (
-                            <>
-                                <View style={styles.fabMenuContainer}>
-                                    <TouchableOpacity
-                                        style={styles.fabMenuItemSecondary}
-                                        onPress={() => {
-                                            setIsFabMenuOpen(false);
-                                            setCreateFolderVisible(true);
-                                        }}
-                                    >
-                                        <Feather name="folder" size={20} color="white" />
-                                        <Text style={styles.fabMenuItemText}>Create Folder</Text>
-                                    </TouchableOpacity>
+                            <View style={styles.fabMenuContainer}>
+                                <TouchableOpacity
+                                    style={styles.fabMenuItemSecondary}
+                                    onPress={() => {
+                                        setIsFabMenuOpen(false);
+                                        setCreateFolderVisible(true);
+                                    }}
+                                >
+                                    <Feather name="folder" size={20} color="white" />
+                                    <Text style={styles.fabMenuItemText}>Create Folder</Text>
+                                </TouchableOpacity>
 
-                                    <TouchableOpacity
-                                        style={styles.fabMenuItemPrimary}
-                                        onPress={() => {
-                                            setIsFabMenuOpen(false);
-                                            handleUpload();
-                                        }}
-                                    >
-                                        <Feather name="upload" size={20} color="white" />
-                                        <Text style={styles.fabMenuItemText}>Upload Document</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </>
+                                <TouchableOpacity
+                                    style={styles.fabMenuItemPrimary}
+                                    onPress={() => {
+                                        setIsFabMenuOpen(false);
+                                        handleUpload();
+                                    }}
+                                >
+                                    <Feather name="upload" size={20} color="white" />
+                                    <Text style={styles.fabMenuItemText}>Upload Document</Text>
+                                </TouchableOpacity>
+                            </View>
                         )}
 
                         <TouchableOpacity
@@ -438,21 +426,9 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
                         </TouchableOpacity>
                     </View>
                 )}
-
-                {/* Navigation Pill */}
-                <View style={styles.pillNav}>
-                    <TouchableOpacity style={styles.navItemActive}>
-                        <Ionicons name="home-outline" size={20} color="#FFFFFF" />
-                        <Text style={styles.navTextActive}>Home</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('friends')}>
-                        <Ionicons name="people-outline" size={22} color="#94A3B8" />
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('profile')}>
-                        <Ionicons name="person-outline" size={22} color="#94A3B8" />
-                    </TouchableOpacity>
-                </View>
             </View>
+            {/* Shared Bottom Navigation Bar */}
+            <BottomNavBar currentScreen="dashboard" onNavigate={(screen: any) => onNavigate(screen)} activeColor="#1581BF" />
 
             {/* Create Folder Modal */}
             <Modal
@@ -522,8 +498,8 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
                     <View style={styles.bottomSheet}>
                         <View style={styles.dragHandle} />
 
-                        <View style={[styles.folderIconContainer, { backgroundColor: '#FFEDD5' }]}>
-                            <Feather name="upload" size={24} color="#F97316" />
+                        <View style={[styles.folderIconContainer, { backgroundColor: '#DBEAFE' }]}>
+                            <Feather name="upload" size={24} color="#1581BF" />
                         </View>
 
                         <Text style={styles.modalTitle}>Upload File</Text>
@@ -531,7 +507,7 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
                         <TouchableOpacity style={styles.uploadDropZone} onPress={pickDocument}>
                             {selectedFile ? (
                                 <View style={{ alignItems: 'center' }}>
-                                    <Feather name="file-text" size={32} color="#F97316" />
+                                    <Feather name="file-text" size={32} color="#1581BF" />
                                     <Text style={styles.uploadMainText}>{selectedFile.name}</Text>
                                     <Text style={styles.uploadSubText}>
                                         {selectedFile.size ? (selectedFile.size / (1024 * 1024)).toFixed(2) + ' MB' : 'Unknown Size'}
@@ -565,7 +541,7 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
                             <TouchableOpacity
                                 style={[
                                     styles.modalCreateButton,
-                                    { backgroundColor: selectedFile ? '#F97316' : '#FED7AA' }
+                                    { backgroundColor: selectedFile ? '#1581BF' : '#BFDBFE' }
                                 ]}
                                 onPress={confirmUpload}
                                 disabled={!selectedFile || isUploading}
@@ -610,7 +586,7 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
                         <View style={styles.viewerContent}>
                             {/* Placeholder for the actual file content */}
                             <View style={styles.filePreviewPlaceholder}>
-                                <Feather name="image" size={120} color="#EA580C" />
+                                <Feather name="image" size={120} color="#1565A0" />
                             </View>
                         </View>
 
@@ -739,7 +715,7 @@ const DocumentItemRow = ({ item, onRename, onDelete, onPress }: DocumentItemRowP
                 renderRightActions={renderRightActions}
                 renderLeftActions={renderLeftActions}
             >
-                <View style={{ backgroundColor: '#FFF7ED' }}>
+                <View style={{ backgroundColor: '#EFF6FF' }}>
                     <TouchableOpacity
                         style={styles.docItem}
                         onPress={onPress}
@@ -752,7 +728,7 @@ const DocumentItemRow = ({ item, onRename, onDelete, onPress }: DocumentItemRowP
                                         <Text style={styles.initialText}>{(item.name[0] || '?').toUpperCase()}</Text>
                                     </View>
                                 ) : (
-                                    <Feather name="image" size={24} color="#EA580C" />
+                                    <Feather name="image" size={24} color="#1565A0" />
                                 )}
                             </View>
                             <View style={{ flex: 1 }}>
@@ -770,7 +746,7 @@ const DocumentItemRow = ({ item, onRename, onDelete, onPress }: DocumentItemRowP
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FFF7ED', // Orange 50
+        backgroundColor: '#EFF6FF', // Orange 50
     },
     header: {
         flexDirection: 'row',
@@ -797,30 +773,7 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: '#1E293B',
     },
-    searchContainer: {
-        marginHorizontal: 24,
-        marginTop: 8,
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#FFFFFF',
-        borderRadius: 16,
-        paddingHorizontal: 16,
-        height: 50,
-        shadowColor: '#64748B',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
-    },
-    searchIcon: {
-        marginRight: 12,
-    },
-    searchInput: {
-        flex: 1,
-        fontSize: 15,
-        color: '#1E293B',
-        fontWeight: '500',
-    },
+
     sectionHeader: {
         paddingHorizontal: 24,
         marginTop: 20,
@@ -839,7 +792,7 @@ const styles = StyleSheet.create({
     breadcrumbActive: {
         fontSize: 12,
         fontWeight: '700',
-        backgroundColor: '#FFEDD5', // Orange 100
+        backgroundColor: '#DBEAFE', // Orange 100
         paddingHorizontal: 8,
         paddingVertical: 2,
         borderRadius: 6,
@@ -864,7 +817,7 @@ const styles = StyleSheet.create({
         borderRadius: 30,
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#EA580C',
+        shadowColor: '#1565A0',
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.3,
         shadowRadius: 20,
@@ -877,7 +830,7 @@ const styles = StyleSheet.create({
         width: 30,
         height: 30,
         borderRadius: 15,
-        backgroundColor: '#FFEDD5', // Orange 100
+        backgroundColor: '#DBEAFE', // Orange 100
         opacity: 0.5,
     },
     emptyTitle: {
@@ -918,11 +871,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#F97316', // Orange 500
+        backgroundColor: '#1581BF', // Orange 500
         paddingVertical: 14,
         paddingHorizontal: 24,
         borderRadius: 12,
-        shadowColor: '#F97316',
+        shadowColor: '#1581BF',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -966,10 +919,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     folderIconBg: {
-        backgroundColor: '#FFEDD5', // Orange 100
+        backgroundColor: '#DBEAFE', // Blue 100
     },
     fileIconBg: {
-        backgroundColor: '#FEF3C7', // Amber 100
+        backgroundColor: '#BFDBFE', // Blue 200
     },
     docName: {
         fontSize: 16,
@@ -1026,20 +979,21 @@ const styles = StyleSheet.create({
         right: 0,
         alignItems: 'center',
     },
-    bottomNavWrapper: {
+    fabMenuWrapper: {
         // Logic for FAB if needed
         marginBottom: 10, // Adjust position relative to nav
         alignItems: 'center',
+        alignSelf: 'center', // Center the wrapper
         zIndex: 200,
     },
     fabButton: {
         width: 56,
         height: 56,
         borderRadius: 20, // Squircle shape
-        backgroundColor: '#F97316', // Orange 500
+        backgroundColor: '#1581BF', // Orange 500
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#F97316',
+        shadowColor: '#1581BF',
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.4,
         shadowRadius: 12,
@@ -1047,7 +1001,7 @@ const styles = StyleSheet.create({
         zIndex: 200,
     },
     fabButtonOpen: {
-        backgroundColor: '#F97316',
+        backgroundColor: '#1581BF',
         // No rotation needed for icon swap
     },
     fabIconOpen: {
@@ -1063,12 +1017,12 @@ const styles = StyleSheet.create({
     fabMenuItemPrimary: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#F97316',
+        backgroundColor: '#1581BF',
         paddingVertical: 12,
         paddingHorizontal: 20,
         borderRadius: 24,
         gap: 8,
-        shadowColor: '#F97316',
+        shadowColor: '#1581BF',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -1216,7 +1170,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
     },
     modalInputActive: {
-        borderColor: '#F97316',
+        borderColor: '#1581BF',
         backgroundColor: '#FFFFFF',
     },
 
@@ -1357,6 +1311,6 @@ const styles = StyleSheet.create({
     initialText: {
         fontSize: 14,
         fontWeight: 'bold',
-        color: '#B45309', // Darker amber/orange
+        color: '#1565A0', // Blue 800
     },
 });

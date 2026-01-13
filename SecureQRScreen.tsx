@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { firestoreService } from './services/firestoreService';
+import BottomNavBar from './components/BottomNavBar';
 
 interface SecureQRCardItemProps {
     qr: any;
@@ -132,7 +133,6 @@ interface SecureQRScreenProps {
 export default function SecureQRScreen({ onNavigate, userId }: SecureQRScreenProps) {
     const [qrCodes, setQrCodes] = useState<any[]>([]);
     const [loadingQrs, setLoadingQrs] = useState(true);
-    const [searchQuery, setSearchQuery] = useState('');
 
     const [allDocuments, setAllDocuments] = useState<any[]>([]);
     const [loadingDocs, setLoadingDocs] = useState(false);
@@ -287,12 +287,8 @@ export default function SecureQRScreen({ onNavigate, userId }: SecureQRScreenPro
                     <TouchableOpacity onPress={() => onNavigate('dashboard')} style={styles.backButton}>
                         <Feather name="arrow-left" size={24} color="#1E293B" />
                     </TouchableOpacity>
-
-                    <View style={styles.headerTitleContainer}>
-                        <Text style={styles.headerTitle}>Secure QR</Text>
-                        <Text style={styles.headerSubtitle}>{qrCodes.length} active codes</Text>
-                    </View>
-
+                    <Text style={styles.headerTitle}>Secure QR</Text>
+                    <View style={{ width: 44 }} />
                 </View>
 
                 <View style={styles.content}>
@@ -312,20 +308,9 @@ export default function SecureQRScreen({ onNavigate, userId }: SecureQRScreenPro
                     ) : (
                         /* List State */
                         <ScrollView showsVerticalScrollIndicator={false}>
-                            {/* Search Bar */}
-                            <View style={styles.searchContainer}>
-                                <Feather name="search" size={20} color="#94A3B8" />
-                                <TextInput
-                                    style={styles.searchInput}
-                                    placeholder="Search QRs..."
-                                    placeholderTextColor="#94A3B8"
-                                    value={searchQuery}
-                                    onChangeText={setSearchQuery}
-                                />
-                            </View>
+                            <View style={{ height: 20 }} />
 
                             {qrCodes
-                                .filter(qr => qr.label?.toLowerCase().includes(searchQuery.toLowerCase()))
                                 .map((qr) => (
                                     <SecureQRCardItem
                                         key={qr.id}
@@ -346,31 +331,18 @@ export default function SecureQRScreen({ onNavigate, userId }: SecureQRScreenPro
             {/* Top Right Background Decoration */}
             <View style={styles.topRightDecoration} />
 
-            {/* Bottom Navigation Bar */}
-            <View style={styles.bottomNavContainer}>
-                {/* FAB Button */}
-                <View style={styles.fabWrapper}>
-                    <TouchableOpacity
-                        style={styles.fabButton}
-                        onPress={handleOpenAddModal}
-                    >
-                        <Feather name="plus" size={32} color="white" />
-                    </TouchableOpacity>
-                </View>
-
-                <View style={styles.bottomNav}>
-                    <TouchableOpacity style={styles.navItemActive} onPress={() => onNavigate('dashboard')}>
-                        <Ionicons name="home" size={20} color="#FFFFFF" />
-                        <Text style={styles.navTextActive}>Home</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('friends')}>
-                        <FontAwesome5 name="user-friends" size={20} color="#94A3B8" />
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.navItem} onPress={() => onNavigate('profile')}>
-                        <FontAwesome5 name="user" size={20} color="#94A3B8" />
-                    </TouchableOpacity>
-                </View>
+            {/* FAB Button for Add QR */}
+            <View style={styles.fabWrapper}>
+                <TouchableOpacity
+                    style={styles.fabButton}
+                    onPress={handleOpenAddModal}
+                >
+                    <Feather name="plus" size={32} color="white" />
+                </TouchableOpacity>
             </View>
+
+            {/* Shared Bottom Navigation Bar */}
+            <BottomNavBar currentScreen="dashboard" onNavigate={(screen: any) => onNavigate(screen)} activeColor="#F97316" />
 
             {/* Add/Edit QR Modal Overlay */}
             {showAddModal && (
@@ -532,14 +504,8 @@ const styles = StyleSheet.create({
     },
     headerTitle: {
         fontSize: 18,
-        fontWeight: '800',
-        color: '#0F172A',
-    },
-    headerSubtitle: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: '#64748B',
-        marginTop: 2,
+        fontWeight: '700',
+        color: '#1E293B',
     },
     headerSubtitle: {
         fontSize: 12,
@@ -621,27 +587,7 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         marginTop: 6,
     },
-    searchContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#FFFFFF',
-        borderRadius: 16,
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        marginBottom: 20,
-        shadowColor: '#E2E8F0',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.5,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    searchInput: {
-        flex: 1,
-        marginLeft: 12,
-        fontSize: 16,
-        color: '#0F172A',
-        fontWeight: '500',
-    },
+
     cardGradient: {
         borderRadius: 24,
         padding: 24,
@@ -733,58 +679,26 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    qrBox: {
-        width: 120,
-        height: 120,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 16,
+
+    // FAB Button (Orange theme)
+    fabWrapper: {
+        position: 'absolute',
+        bottom: 100,
+        alignSelf: 'center',
+        zIndex: 10,
+    },
+    fabButton: {
+        width: 56,
+        height: 56,
+        borderRadius: 20,
+        backgroundColor: '#F97316', // Orange to match page theme
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 4,
-    },
-
-    // Bottom Nav
-    bottomNavContainer: {
-        position: 'absolute',
-        bottom: 30,
-        left: 0,
-        right: 0,
-        alignItems: 'center',
-    },
-    bottomNav: {
-        flexDirection: 'row',
-        backgroundColor: '#FFFFFF',
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 30,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.1,
-        shadowRadius: 20,
-        elevation: 10,
-        gap: 30,
-        alignItems: 'center',
-    },
-    navItem: {
-        padding: 10,
-    },
-    navItemActive: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#6366F1', // Indigo to match dashboard
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 20,
-        gap: 8,
-    },
-    navTextActive: {
-        color: '#FFFFFF',
-        fontWeight: '700',
-        fontSize: 14,
+        shadowColor: '#F97316',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.4,
+        shadowRadius: 12,
+        elevation: 8,
     },
 
     // Add Modal Styles
@@ -973,62 +887,6 @@ const styles = StyleSheet.create({
     cancelText: {
         color: '#64748B',
         fontWeight: '600',
-    },
-    // Bottom Nav (Pill) & FAB
-    bottomNavContainer: {
-        position: 'absolute',
-        bottom: 30,
-        left: 0,
-        right: 0,
-        alignItems: 'center',
-    },
-    fabWrapper: {
-        marginBottom: 16,
-        zIndex: 10,
-    },
-    fabButton: {
-        width: 56,
-        height: 56,
-        borderRadius: 20, // Squircle (Standardized)
-        backgroundColor: '#6366F1', // Indigo to match Homepage
-        justifyContent: 'center',
-        alignItems: 'center',
-        shadowColor: '#6366F1',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.4,
-        shadowRadius: 12,
-        elevation: 8,
-    },
-    bottomNav: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#FFFFFF',
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 30,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.1,
-        shadowRadius: 20,
-        elevation: 10,
-        gap: 20,
-    },
-    navItem: {
-        padding: 10,
-    },
-    navItemActive: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#F97316', // Orange 500 to match theme
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 20,
-        gap: 8,
-    },
-    navTextActive: {
-        color: '#FFFFFF',
-        fontWeight: '700',
-        fontSize: 14,
     },
 });
 

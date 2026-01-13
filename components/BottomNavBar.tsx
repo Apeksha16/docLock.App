@@ -26,7 +26,7 @@ const TABS = [
         label: 'Friends',
         icon: 'account-group',
         iconOutline: 'account-group-outline',
-        color: '#EC4899' // Pink
+        color: '#F9A828' // Yellow/Orange
     },
     {
         name: 'profile',
@@ -35,16 +35,17 @@ const TABS = [
         iconOutline: 'account-outline',
         color: '#0D9488' // Teal 600 (Darker for better contrast on white text)
     },
-] as const;
+];
 
 type ScreenName = typeof TABS[number]['name'];
 
 interface BottomNavBarProps {
     currentScreen: ScreenName | string;
     onNavigate: (screen: ScreenName) => void;
+    activeColor?: string; // Optional color prop for active tab
 }
 
-export default function BottomNavBar({ currentScreen, onNavigate }: BottomNavBarProps) {
+export default function BottomNavBar({ currentScreen, onNavigate, activeColor }: BottomNavBarProps) {
     const activeIndex = useSharedValue(0);
 
     useEffect(() => {
@@ -60,12 +61,14 @@ export default function BottomNavBar({ currentScreen, onNavigate }: BottomNavBar
 
                 {TABS.map((tab, index) => {
                     const isActive = currentScreen === tab.name;
+                    // Use activeColor if provided, otherwise use tab's default color
+                    const backgroundColor = isActive ? (activeColor || tab.color) : 'transparent';
                     return (
                         <TouchableOpacity
                             key={tab.name}
                             style={[
                                 styles.tabItem,
-                                isActive && { backgroundColor: tab.color }
+                                isActive && { backgroundColor }
                             ]}
                             onPress={() => onNavigate(tab.name)}
                             activeOpacity={0.8}

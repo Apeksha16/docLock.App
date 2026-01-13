@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Dimensions, ActivityIndicator, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Dimensions, ActivityIndicator, Alert } from 'react-native';
 import { Feather, FontAwesome5, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,7 +19,6 @@ interface MyCardsScreenProps {
 }
 
 export default function MyCardsScreen({ onNavigate, userId, cards }: MyCardsScreenProps) {
-    const [searchQuery, setSearchQuery] = useState('');
     const formatDisplayCardNumber = (encryptedNumber: string) => {
         try {
             const decrypted = encryptionService.decryptData(encryptedNumber);
@@ -83,10 +82,15 @@ export default function MyCardsScreen({ onNavigate, userId, cards }: MyCardsScre
     };
 
     const renderCardItem = (card: any) => {
+        // Determine gradient colors based on card type
+        const gradientColors = card.cardType === 'credit'
+            ? ['#A77979', '#B88A8A'] as const // Credit card - rose/mauve gradient
+            : ['#E5C95F', '#EDD786'] as const; // Debit card - golden/yellow gradient
+
         return (
             <LinearGradient
                 key={card.id}
-                colors={['#DC362E', '#E85D35']} // Red to Orange gradient
+                colors={gradientColors}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.cardContainer}
@@ -115,7 +119,9 @@ export default function MyCardsScreen({ onNavigate, userId, cards }: MyCardsScre
                 </View>
 
                 {/* Card Name */}
-                <Text style={styles.cardNameLabel}>{card.cardName || 'CARD NAME'}</Text>
+                <TouchableOpacity onPress={() => handleCopy(card.cardName, "Card Name")}>
+                    <Text style={styles.cardNameLabel}>{card.cardName || 'CARD NAME'}</Text>
+                </TouchableOpacity>
 
                 {/* Number */}
                 <TouchableOpacity onPress={() => handleCopy(card.cardNumber, "Card Number")}>
@@ -124,20 +130,20 @@ export default function MyCardsScreen({ onNavigate, userId, cards }: MyCardsScre
 
                 {/* Details Footer */}
                 <View style={styles.cardFooter}>
-                    <View>
+                    <TouchableOpacity onPress={() => handleCopy(card.holderName, "Holder Name")}>
                         <Text style={styles.detailLabel}>CARD HOLDER</Text>
                         <Text style={styles.detailValue} numberOfLines={1}>{card.holderName || userPlaceholderName}</Text>
-                    </View>
+                    </TouchableOpacity>
 
                     <View style={{ flexDirection: 'row', gap: 24 }}>
-                        <View>
+                        <TouchableOpacity onPress={() => handleCopy(card.expiry, "Expiry Date")}>
                             <Text style={styles.detailLabel}>EXPIRES</Text>
                             <Text style={styles.detailValue}>{encryptionService.decryptData(card.expiry) || 'MM/YY'}</Text>
-                        </View>
-                        <View>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => handleCopy(card.cvv, "CVV")}>
                             <Text style={styles.detailLabel}>CVV</Text>
                             <Text style={styles.detailValue}>•••</Text>
-                        </View>
+                        </TouchableOpacity>
                     </View>
                 </View>
             </LinearGradient>
@@ -146,13 +152,8 @@ export default function MyCardsScreen({ onNavigate, userId, cards }: MyCardsScre
 
     const userPlaceholderName = "USER NAME"; // Fallback
 
-    const filteredCards = cards.filter(c =>
-        (c.cardName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (c.holderName || '').toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
-    const debitCards = filteredCards.filter(c => c.cardType === 'debit' || !c.cardType);
-    const creditCards = filteredCards.filter(c => c.cardType === 'credit');
+    const debitCards = cards.filter(c => c.cardType === 'debit' || !c.cardType);
+    const creditCards = cards.filter(c => c.cardType === 'credit');
 
     return (
         <View style={styles.container}>
@@ -168,12 +169,8 @@ export default function MyCardsScreen({ onNavigate, userId, cards }: MyCardsScre
                     <TouchableOpacity onPress={() => onNavigate('dashboard')} style={styles.backButton}>
                         <Feather name="arrow-left" size={24} color="#1E293B" />
                     </TouchableOpacity>
-
-                    <View style={styles.headerTitleContainer}>
-                        <Text style={styles.headerTitle}>My Cards</Text>
-                        <Text style={styles.headerSubtitle}>Total {cards.length} cards</Text>
-                    </View>
-
+                    <Text style={styles.headerTitle}>My Cards</Text>
+                    <View style={{ width: 44 }} />
                 </View>
 
                 {/* Tip Banner */}
@@ -184,17 +181,6 @@ export default function MyCardsScreen({ onNavigate, userId, cards }: MyCardsScre
 
                 {/* Content Section */}
                 <ScrollView style={styles.contentScroll} showsVerticalScrollIndicator={false}>
-                    {/* Search Bar */}
-                    <View style={styles.searchContainer}>
-                        <Feather name="search" size={20} color="#94A3B8" />
-                        <TextInput
-                            style={styles.searchInput}
-                            placeholder="Search Cards..."
-                            placeholderTextColor="#94A3B8"
-                            value={searchQuery}
-                            onChangeText={setSearchQuery}
-                        />
-                    </View>
 
                     {/* Debit Cards Section */}
                     <View style={styles.sectionHeader}>
@@ -235,20 +221,20 @@ export default function MyCardsScreen({ onNavigate, userId, cards }: MyCardsScre
                     <View style={{ height: 100 }} />
                 </ScrollView>
 
-                {/* FAB Button for Add Card */}
-                <View style={styles.fabWrapper}>
-                    <TouchableOpacity
-                        style={styles.fabButton}
-                        onPress={() => onNavigate('add-card')}
-                    >
-                        <Feather name="plus" size={32} color="white" />
-                    </TouchableOpacity>
-                </View>
-
-                {/* Shared Bottom Navigation Bar */}
-                <BottomNavBar currentScreen="my-cards" onNavigate={(screen: any) => onNavigate(screen)} />
-
             </SafeAreaView>
+
+            {/* FAB Button for Add Card */}
+            <View style={styles.fabWrapper}>
+                <TouchableOpacity
+                    style={styles.fabButton}
+                    onPress={() => onNavigate('add-card')}
+                >
+                    <Feather name="plus" size={32} color="white" />
+                </TouchableOpacity>
+            </View>
+
+            {/* Shared Bottom Navigation Bar */}
+            <BottomNavBar currentScreen="dashboard" onNavigate={(screen: any) => onNavigate(screen)} activeColor="#EC4899" />
         </View>
     );
 }
@@ -265,7 +251,7 @@ const styles = StyleSheet.create({
         width: 350,
         height: 350,
         borderRadius: 175,
-        backgroundColor: '#FAE8FF', // Light Purple
+        backgroundColor: '#FCE7F3', // Light Pink
         opacity: 0.6,
     },
     center: {
@@ -298,9 +284,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     headerTitle: {
-        fontSize: 20,
-        fontWeight: '800',
-        color: '#0F172A',
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#1E293B',
     },
     headerSubtitle: {
         fontSize: 12,
@@ -325,28 +311,7 @@ const styles = StyleSheet.create({
         color: '#1E40AF',
         fontWeight: '500',
     },
-    searchContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#FFFFFF',
-        borderRadius: 16,
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        marginHorizontal: 24,
-        marginBottom: 20,
-        shadowColor: '#E2E8F0',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.5,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    searchInput: {
-        flex: 1,
-        marginLeft: 12,
-        fontSize: 16,
-        color: '#0F172A',
-        fontWeight: '500',
-    },
+
     contentScroll: {
         flex: 1,
     },
@@ -484,11 +449,11 @@ const styles = StyleSheet.create({
     fabButton: {
         width: 56,
         height: 56,
-        borderRadius: 20, // Squircle (Standardized)
-        backgroundColor: '#6366F1', // Indigo to match Homepage
+        borderRadius: 20,
+        backgroundColor: '#EC4899', // Pink 500 to match cards theme
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#6366F1',
+        shadowColor: '#EC4899',
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.4,
         shadowRadius: 12,

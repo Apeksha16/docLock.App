@@ -1,3 +1,5 @@
+// CRITICAL: Load crypto polyfill FIRST before any other imports that might use crypto
+import './crypto-polyfill';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View } from 'react-native';
 import { useEffect, useState, useRef } from 'react';

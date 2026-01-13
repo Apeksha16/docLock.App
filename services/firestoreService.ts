@@ -645,12 +645,18 @@ export const firestoreService = {
         try {
             loggerService.logRequest('firestoreService.deleteCard', { userId, cardId });
             const cardRef = doc(db, "users", userId, "cards", cardId);
+
+            // Fetch card data before deleting to get the name for notification
+            const cardSnap = await getDoc(cardRef);
+            const cardData = cardSnap.exists() ? cardSnap.data() : null;
+            const cardName = cardData?.cardName || 'Card';
+
             await deleteDoc(cardRef);
 
-            // Notify
+            // Notify with card name
             await addNotificationHelper(userId, {
                 title: 'Card Deleted',
-                message: `Card has been removed from your vault.`,
+                message: `"${cardName}" has been removed from your vault.`,
                 type: 'alert'
             });
 

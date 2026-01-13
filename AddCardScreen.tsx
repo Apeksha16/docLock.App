@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, TextInput, KeyboardAvoidingView, Platform, Dimensions, ActivityIndicator, Alert } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, TextInput, KeyboardAvoidingView, Platform, Dimensions, ActivityIndicator, Alert, Animated } from 'react-native';
 import { Feather, FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -33,6 +33,27 @@ export default function AddCardScreen({ onNavigate, userId, cardToEdit }: AddCar
     // Real-time Validation State: 'neutral' | 'valid' | 'invalid'
     const [numValidation, setNumValidation] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
     const [dateValidation, setDateValidation] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
+
+    // Animation for background decoration
+    const scaleAnim = useRef(new Animated.Value(1)).current;
+
+    useEffect(() => {
+        // Pulsing animation for background circle
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(scaleAnim, {
+                    toValue: 1.1,
+                    duration: 3000,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(scaleAnim, {
+                    toValue: 1,
+                    duration: 3000,
+                    useNativeDriver: true,
+                }),
+            ])
+        ).start();
+    }, []);
 
     // Helper functions need to be defined before usage or useEffect
     const formatCardNumber = (text: string) => {
@@ -359,8 +380,8 @@ export default function AddCardScreen({ onNavigate, userId, cardToEdit }: AddCar
         <View style={styles.container}>
             <StatusBar barStyle="dark-content" />
 
-            {/* Background Decoration */}
-            <View style={styles.bgDecoration} />
+            {/* Animated Background Decoration */}
+            <Animated.View style={[styles.bgDecoration, { transform: [{ scale: scaleAnim }] }]} />
 
             <SafeAreaView style={{ flex: 1 }}>
                 <KeyboardAvoidingView
@@ -369,7 +390,7 @@ export default function AddCardScreen({ onNavigate, userId, cardToEdit }: AddCar
                 >
                     {/* Header */}
                     <View style={styles.header}>
-                        <TouchableOpacity onPress={() => onNavigate(cardToEdit ? 'my-cards' : 'dashboard')} style={styles.backButton}>
+                        <TouchableOpacity onPress={() => onNavigate('my-cards')} style={styles.backButton}>
                             <Feather name="arrow-left" size={24} color="#1E293B" />
                         </TouchableOpacity>
                         <Text style={styles.headerTitle}>{cardToEdit ? 'Edit Card' : 'Add New Card'}</Text>
@@ -404,7 +425,7 @@ export default function AddCardScreen({ onNavigate, userId, cardToEdit }: AddCar
                                     </View>
                                 ) : (
                                     <LinearGradient
-                                        colors={['#D97706', '#B45309']}
+                                        colors={['#EC4899', '#F472B6']}
                                         style={styles.cardGradient}
                                         start={{ x: 0, y: 0 }}
                                         end={{ x: 1, y: 1 }}
@@ -447,7 +468,7 @@ export default function AddCardScreen({ onNavigate, userId, cardToEdit }: AddCar
                             {/* Scan Trigger Button (Minimal) - Only show when adding new card */}
                             {!isScanning && !cardToEdit && (
                                 <TouchableOpacity onPress={startScan} activeOpacity={0.7} style={styles.scanTriggerButton}>
-                                    <MaterialCommunityIcons name="line-scan" size={20} color="#F59E0B" />
+                                    <MaterialCommunityIcons name="line-scan" size={20} color="#EC4899" />
                                     <Text style={styles.scanTriggerText}>Scan Card</Text>
                                 </TouchableOpacity>
                             )}
@@ -553,7 +574,7 @@ export default function AddCardScreen({ onNavigate, userId, cardToEdit }: AddCar
                 </KeyboardAvoidingView>
 
                 {/* Shared Bottom Navigation Bar */}
-                <BottomNavBar currentScreen="my-cards" onNavigate={(screen: any) => onNavigate(screen)} />
+                <BottomNavBar currentScreen="dashboard" onNavigate={(screen: any) => onNavigate(screen)} activeColor="#EC4899" />
             </SafeAreaView>
         </View>
     );
@@ -562,7 +583,7 @@ export default function AddCardScreen({ onNavigate, userId, cardToEdit }: AddCar
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FFFBEB',
+        backgroundColor: '#F8FAFC', // Light gray to match MyCardsScreen
     },
     bgDecoration: {
         position: 'absolute',
@@ -571,8 +592,8 @@ const styles = StyleSheet.create({
         width: 400,
         height: 400,
         borderRadius: 200,
-        backgroundColor: '#FEF3C7',
-        opacity: 0.5,
+        backgroundColor: '#FCE7F3', // Light pink to match MyCardsScreen
+        opacity: 0.6,
     },
     header: {
         flexDirection: 'row',
@@ -586,6 +607,13 @@ const styles = StyleSheet.create({
         height: 44,
         justifyContent: 'center',
         alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        shadowColor: '#E2E8F0',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.5,
+        shadowRadius: 4,
+        elevation: 2,
     },
     headerTitle: {
         fontSize: 18,
@@ -644,7 +672,7 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     scanTriggerText: {
-        color: '#F59E0B',
+        color: '#EC4899',
         fontWeight: '600',
         fontSize: 14,
     },
@@ -660,7 +688,7 @@ const styles = StyleSheet.create({
         width: '80%',
         height: '60%',
         borderWidth: 2,
-        borderColor: '#F59E0B',
+        borderColor: '#EC4899',
         borderRadius: 12,
         backgroundColor: 'transparent',
     },
@@ -698,13 +726,13 @@ const styles = StyleSheet.create({
         flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
         paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF',
     },
-    typeButtonActive: { backgroundColor: '#F59E0B', borderColor: '#F59E0B' },
+    typeButtonActive: { backgroundColor: '#EC4899', borderColor: '#EC4899' },
     typeText: { fontWeight: '600', color: '#64748B' },
     typeTextActive: { color: '#FFFFFF' },
     row: { flexDirection: 'row' },
     addCardButton: {
-        backgroundColor: '#F59E0B', borderRadius: 16, paddingVertical: 18, alignItems: 'center',
-        shadowColor: '#F59E0B', shadowOffset: { width: 0, height: 4 },
+        backgroundColor: '#EC4899', borderRadius: 16, paddingVertical: 18, alignItems: 'center',
+        shadowColor: '#EC4899', shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3, shadowRadius: 8, elevation: 5, marginTop: 10,
     },
     addCardButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
