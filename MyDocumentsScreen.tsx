@@ -5,9 +5,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import { firestoreService } from './services/firestoreService';
 import { storageService } from './services/storageService';
 import BottomNavBar from './components/BottomNavBar';
+import { WebView } from 'react-native-webview';
+import { Platform } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -22,12 +25,19 @@ interface DocumentItem {
     name: string;
     meta: string; // "0 items" or "713.2 KB • Jan 10, 2026"
     parentId: string | null;
+    downloadURL?: string;
 }
 
 export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScreenProps) {
     const [documents, setDocuments] = useState<DocumentItem[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [folderStack, setFolderStack] = useState<{ id: string, name: string }[]>([]); // Navigation stack
+
+    // Search State
+    const [searchQuery, setSearchQuery] = useState('');
+    const filteredDocuments = documents.filter(doc =>
+        doc.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     // UI State
     const [isCreateFolderVisible, setCreateFolderVisible] = useState(false);
@@ -40,10 +50,19 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
     const [isUploadVisible, setUploadVisible] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadDocName, setUploadDocName] = useState('');
+    const [uploadType, setUploadType] = useState<'pdf' | 'image'>('pdf'); // default
     const [selectedFile, setSelectedFile] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
 
     // File Viewer State
     const [viewingFile, setViewingFile] = useState<DocumentItem | null>(null);
+    const [isViewerLoading, setIsViewerLoading] = useState(true);
+
+    // Reset loader when opening a file
+    useEffect(() => {
+        if (viewingFile) {
+            setIsViewerLoading(true);
+        }
+    }, [viewingFile]);
 
     // Delete Confirmation State
     const [deletingItem, setDeletingItem] = useState<DocumentItem | null>(null);
@@ -149,30 +168,63 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
 
 
 
-    const handleUpload = () => {
+    const handleUpload = (type: 'pdf' | 'image') => {
+        setUploadType(type);
         setUploadVisible(true);
     };
 
     const pickDocument = async () => {
         try {
-            const result = await DocumentPicker.getDocumentAsync({
-                type: '*/*', // Allow all types
-                copyToCacheDirectory: true,
-            });
+            let asset: any = null;
 
-            if (!result.canceled && result.assets && result.assets.length > 0) {
-                const asset = result.assets[0];
+            if (uploadType === 'image') {
+                const result = await ImagePicker.launchImageLibraryAsync({
+                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                    allowsEditing: false,
+                    quality: 1,
+                });
+
+                if (!result.canceled && result.assets && result.assets.length > 0) {
+                    const pickerAsset = result.assets[0];
+                    asset = {
+                        uri: pickerAsset.uri,
+                        name: pickerAsset.fileName || pickerAsset.uri.split('/').pop() || 'image.jpg',
+                        mimeType: pickerAsset.mimeType || 'image/jpeg',
+                        size: pickerAsset.fileSize || 0
+                    };
+                }
+            } else {
+                const result = await DocumentPicker.getDocumentAsync({
+                    type: ['application/pdf'],
+                    copyToCacheDirectory: true,
+                });
+
+                if (!result.canceled && result.assets && result.assets.length > 0) {
+                    asset = result.assets[0];
+                }
+            }
+
+            if (asset) {
+                if (uploadType === 'image') {
+                    // Validate File Type (No GIFs)
+                    const isGif = asset.mimeType === 'image/gif' || asset.name.toLowerCase().endsWith('.gif');
+                    if (isGif) {
+                        Alert.alert('Invalid File Type', 'GIFs are not allowed. Please upload a static image.');
+                        return;
+                    }
+                }
+
                 // Validate size (5MB limit)
                 if (asset.size && asset.size > 5 * 1024 * 1024) {
                     Alert.alert('File too large', 'Please select a file smaller than 5MB.');
                     return;
                 }
-                setSelectedFile(asset);
+                setSelectedFile(asset as DocumentPicker.DocumentPickerAsset);
                 setUploadDocName(asset.name);
             }
         } catch (error) {
             console.error(error);
-            Alert.alert('Error', 'Failed to pick document.');
+            Alert.alert('Error', 'Failed to pick file.');
         }
     };
 
@@ -284,7 +336,17 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
                     <View style={{ width: 44 }} />
                 </View>
 
-
+                {/* Search Bar */}
+                <View style={styles.searchContainer}>
+                    <Feather name="search" size={20} color="#94A3B8" style={styles.searchIcon} />
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder="Search docs..."
+                        placeholderTextColor="#94A3B8"
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                    />
+                </View>
 
                 {/* Breadcrumb / Section Title */}
                 {/* SHOW BREADCRUMB ONLY IF NOT EMPTY ROOT or IF NAVIGATED */}
@@ -321,6 +383,13 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
                         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                             <ActivityIndicator size="large" color="#1581BF" />
                         </View>
+                    ) : filteredDocuments.length === 0 && searchQuery.length > 0 ? (
+                        <View style={styles.emptyStateContainer}>
+                            <Text style={styles.emptyTitle}>No Results Found</Text>
+                            <Text style={styles.emptySubtitle}>
+                                Try searching for something else
+                            </Text>
+                        </View>
                     ) : documents.length === 0 ? (
                         <View style={styles.emptyStateContainer}>
                             {/* Placeholder Icon */}
@@ -350,16 +419,24 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
 
                                 <TouchableOpacity
                                     style={styles.actionButtonPrimary}
-                                    onPress={handleUpload}
+                                    onPress={() => handleUpload('image')}
                                 >
-                                    <Feather name="upload" size={20} color="white" style={{ marginRight: 8 }} />
-                                    <Text style={styles.actionButtonText}>Upload Document</Text>
+                                    <Feather name="image" size={20} color="white" style={{ marginRight: 8 }} />
+                                    <Text style={styles.actionButtonText}>Upload Img</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={styles.actionButtonPrimary}
+                                    onPress={() => handleUpload('pdf')}
+                                >
+                                    <Feather name="file-text" size={20} color="white" style={{ marginRight: 8 }} />
+                                    <Text style={styles.actionButtonText}>Upload Doc</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
                     ) : (
                         <FlatList
-                            data={documents}
+                            data={filteredDocuments}
                             renderItem={renderDocumentItem}
                             keyExtractor={item => item.id}
                             contentContainerStyle={styles.listContent}
@@ -403,11 +480,22 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
                                     style={styles.fabMenuItemPrimary}
                                     onPress={() => {
                                         setIsFabMenuOpen(false);
-                                        handleUpload();
+                                        handleUpload('image');
                                     }}
                                 >
-                                    <Feather name="upload" size={20} color="white" />
-                                    <Text style={styles.fabMenuItemText}>Upload Document</Text>
+                                    <Feather name="image" size={20} color="white" />
+                                    <Text style={styles.fabMenuItemText}>Upload Img</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={styles.fabMenuItemPrimary}
+                                    onPress={() => {
+                                        setIsFabMenuOpen(false);
+                                        handleUpload('pdf');
+                                    }}
+                                >
+                                    <Feather name="file-text" size={20} color="white" />
+                                    <Text style={styles.fabMenuItemText}>Upload Doc</Text>
                                 </TouchableOpacity>
                             </View>
                         )}
@@ -502,7 +590,7 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
                             <Feather name="upload" size={24} color="#1581BF" />
                         </View>
 
-                        <Text style={styles.modalTitle}>Upload File</Text>
+                        <Text style={styles.modalTitle}>{uploadType === 'pdf' ? 'Upload Document' : 'Upload Image'}</Text>
 
                         <TouchableOpacity style={styles.uploadDropZone} onPress={pickDocument}>
                             {selectedFile ? (
@@ -516,8 +604,8 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
                             ) : (
                                 <View style={{ alignItems: 'center' }}>
                                     <Feather name="upload-cloud" size={32} color="#3B82F6" style={{ marginBottom: 12 }} />
-                                    <Text style={styles.uploadMainText}>Tap to select file</Text>
-                                    <Text style={styles.uploadSubText}>PDF (Max 5MB), Images (Max 2MB)</Text>
+                                    <Text style={styles.uploadMainText}>Tap to select {uploadType === 'pdf' ? 'PDF' : 'Image'}</Text>
+                                    <Text style={styles.uploadSubText}>{uploadType === 'pdf' ? 'PDF (Max 5MB)' : 'Images (Max 5MB)'}</Text>
                                 </View>
                             )}
                         </TouchableOpacity>
@@ -584,10 +672,53 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
 
                         {/* Viewer Content */}
                         <View style={styles.viewerContent}>
-                            {/* Placeholder for the actual file content */}
-                            <View style={styles.filePreviewPlaceholder}>
-                                <Feather name="image" size={120} color="#1565A0" />
-                            </View>
+                            {viewingFile?.downloadURL ? (
+                                (() => {
+                                    const isPdf = viewingFile.name.toLowerCase().endsWith('.pdf');
+                                    const isImage = ['jpg', 'jpeg', 'png', 'heic', 'gif'].some(ext => viewingFile.name.toLowerCase().endsWith(ext));
+
+                                    return (
+                                        <View style={{ flex: 1 }}>
+                                            {/* Global Viewer Loader Overlay */}
+                                            {isViewerLoading && (
+                                                <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center', zIndex: 10 }]}>
+                                                    <ActivityIndicator size="large" color="#1581BF" />
+                                                </View>
+                                            )}
+
+                                            {isImage ? (
+                                                <Image
+                                                    source={{ uri: viewingFile.downloadURL }}
+                                                    style={{ width: '100%', height: '100%', resizeMode: 'contain' }}
+                                                    onLoadEnd={() => setIsViewerLoading(false)}
+                                                />
+                                            ) : isPdf ? (
+                                                <WebView
+                                                    source={{
+                                                        uri: Platform.OS === 'android'
+                                                            ? `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(viewingFile.downloadURL)}`
+                                                            : viewingFile.downloadURL
+                                                    }}
+                                                    style={{ flex: 1 }}
+                                                    onLoadEnd={() => setIsViewerLoading(false)}
+                                                // Hide webview until loaded to avoid flicker?
+                                                // opacity: isViewerLoading ? 0 : 1 
+                                                />
+                                            ) : (
+                                                <View style={[styles.filePreviewPlaceholder, { zIndex: 5 }]}>
+                                                    <Feather name="file-text" size={120} color="#CBD5E1" />
+                                                    <Text style={{ marginTop: 24, fontSize: 18, color: '#64748B' }}>Preview not available</Text>
+                                                </View>
+                                            )}
+                                        </View>
+                                    );
+                                })()
+                            ) : (
+                                <View style={styles.filePreviewPlaceholder}>
+                                    <ActivityIndicator size="large" color="#1581BF" />
+                                    <Text style={{ marginTop: 24, fontSize: 16, color: '#64748B' }}>Loading file data...</Text>
+                                </View>
+                            )}
                         </View>
 
                         {/* Viewer Footer actions */}
@@ -722,13 +853,20 @@ const DocumentItemRow = ({ item, onRename, onDelete, onPress }: DocumentItemRowP
                         activeOpacity={item.type === 'folder' ? 0.7 : 1}
                     >
                         <View style={styles.docItemLeft}>
-                            <View style={[styles.docIconContainer, item.type === 'folder' ? styles.folderIconBg : styles.fileIconBg]}>
+                            <View style={[
+                                styles.docIconContainer,
+                                (item.type === 'folder' || item.name.toLowerCase().endsWith('.pdf')) ? styles.folderIconBg : styles.fileIconBg
+                            ]}>
                                 {item.type === 'folder' ? (
-                                    <View style={styles.initialIcon}>
-                                        <Text style={styles.initialText}>{(item.name[0] || '?').toUpperCase()}</Text>
-                                    </View>
+                                    <Feather name="folder" size={24} color="#3B82F6" />
                                 ) : (
-                                    <Feather name="image" size={24} color="#1565A0" />
+                                    item.name.toLowerCase().endsWith('.pdf') ? (
+                                        <Feather name="file-text" size={24} color="#3B82F6" />
+                                    ) : (['jpg', 'jpeg', 'png', 'heic', 'gif'].some(ext => item.name.toLowerCase().endsWith(ext))) ? (
+                                        <Feather name="image" size={24} color="#1565A0" />
+                                    ) : (
+                                        <Feather name="file-text" size={24} color="#64748B" />
+                                    )
                                 )}
                             </View>
                             <View style={{ flex: 1 }}>
@@ -797,6 +935,33 @@ const styles = StyleSheet.create({
         paddingVertical: 2,
         borderRadius: 6,
         color: '#C2410C', // Orange 700
+    },
+    // Search Styles
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        marginHorizontal: 24,
+        paddingHorizontal: 16,
+        paddingVertical: 12, // Increased height
+        borderRadius: 16, // More rounded
+        marginBottom: 8,
+        shadowColor: '#64748B',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 12,
+        elevation: 2,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+    },
+    searchIcon: {
+        marginRight: 12,
+    },
+    searchInput: {
+        flex: 1,
+        fontSize: 16,
+        color: '#1E293B',
+        fontWeight: '500',
     },
 
     // Empty State
@@ -974,7 +1139,7 @@ const styles = StyleSheet.create({
     // Bottom Nav
     bottomNavContainer: {
         position: 'absolute',
-        bottom: 30,
+        bottom: 100,
         left: 0,
         right: 0,
         alignItems: 'center',
