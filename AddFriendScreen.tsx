@@ -92,7 +92,7 @@ export default function AddFriendScreen({ onBack, onNavigate, userId }: AddFrien
         <View style={styles.container}>
             <StatusBar barStyle="dark-content" />
             <LinearGradient
-                colors={['#FFFBEB', '#FFFFFF']}
+                colors={['#FEF2F2', '#FFFFFF']}
                 style={StyleSheet.absoluteFillObject}
             />
             <SafeAreaView style={{ flex: 1 }}>
@@ -107,12 +107,12 @@ export default function AddFriendScreen({ onBack, onNavigate, userId }: AddFrien
                 <View style={styles.addFriendContent}>
                     <View style={styles.centerIconContainer}>
                         {/* ... (Existing blob view) ... */}
-                        <View style={[styles.blobFloating, { top: 40, left: -100, width: 18, height: 18, backgroundColor: '#FBBF24' }]} />
-                        <View style={[styles.blobFloating, { top: 100, left: -80, width: 24, height: 24, backgroundColor: '#FDE68A' }]} />
-                        <View style={[styles.blobFloating, { top: -20, right: -90, width: 20, height: 20, backgroundColor: '#FDE68A' }]} />
+                        <View style={[styles.blobFloating, { top: 40, left: -100, width: 18, height: 18, backgroundColor: '#EF4444' }]} />
+                        <View style={[styles.blobFloating, { top: 100, left: -80, width: 24, height: 24, backgroundColor: '#FCA5A5' }]} />
+                        <View style={[styles.blobFloating, { top: -20, right: -90, width: 20, height: 20, backgroundColor: '#FCA5A5' }]} />
 
                         <LinearGradient
-                            colors={['#FBBF24', '#F9A828']}
+                            colors={['#EF4444', '#D34E4E']}
                             style={styles.centerIconGradient}
                         >
                             <Feather name="user-plus" size={32} color="#FFFFFF" />
@@ -146,7 +146,7 @@ export default function AddFriendScreen({ onBack, onNavigate, userId }: AddFrien
                     </View>
 
                     <TouchableOpacity style={styles.submitButton} onPress={handleSearch} disabled={isLoading}>
-                        <View style={[styles.submitButtonGradient, { backgroundColor: '#F9A828' }]}>
+                        <View style={[styles.submitButtonGradient, { backgroundColor: '#D34E4E' }]}>
                             {isLoading ? (
                                 <ActivityIndicator color="#FFFFFF" />
                             ) : (
@@ -174,15 +174,17 @@ export default function AddFriendScreen({ onBack, onNavigate, userId }: AddFrien
                         {/* Updated Avatar with Pink Gradient Ring maybe? Keeping simple for now to match screenshot 1 roughly */}
                         <View style={styles.avatarContainer}>
                             <LinearGradient
-                                colors={['#FBBF24', '#F9A828']}
+                                colors={['#EF4444', '#D34E4E']}
                                 style={{ padding: 3, borderRadius: 53 }}
                             >
                                 <View style={{ backgroundColor: 'white', padding: 2, borderRadius: 50 }}>
                                     {foundUser?.photoURL ? (
                                         <Image source={{ uri: foundUser.photoURL }} style={styles.modalAvatar} />
                                     ) : (
-                                        <View style={[styles.modalAvatar, { backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center' }]}>
-                                            <Feather name="user" size={40} color="#F9A828" />
+                                        <View style={[styles.modalAvatar, { backgroundColor: '#F59E0B', justifyContent: 'center', alignItems: 'center' }]}>
+                                            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 32 }}>
+                                                {(foundUser?.fullName || foundUser?.name || '?')[0].toUpperCase()}
+                                            </Text>
                                         </View>
                                     )}
                                 </View>
@@ -191,7 +193,7 @@ export default function AddFriendScreen({ onBack, onNavigate, userId }: AddFrien
 
                         <Text style={styles.foundThemTitle}>Found Them! ✨</Text>
                         <Text style={styles.modalQuestion}>
-                            You're about to add <Text style={{ fontWeight: '800', color: '#F9A828' }}>{foundUser?.fullName || foundUser?.name || 'this user'}</Text> to your secure circle. Ready to start sharing?
+                            You're about to add <Text style={{ fontWeight: '800', color: '#D34E4E' }}>{foundUser?.fullName || foundUser?.name || 'this user'}</Text> to your secure circle. Ready to start sharing?
                         </Text>
 
                         {/* Vertical Buttons as per screenshot 1 */}
@@ -201,7 +203,7 @@ export default function AddFriendScreen({ onBack, onNavigate, userId }: AddFrien
                                 onPress={handleConfirmAdd}
                                 disabled={isAdding}
                             >
-                                <View style={[styles.gradientButton, { backgroundColor: '#F9A828' }]}>
+                                <View style={[styles.gradientButton, { backgroundColor: '#D34E4E' }]}>
                                     {isAdding ? (
                                         <ActivityIndicator size="small" color="#FFFFFF" />
                                     ) : (
@@ -297,7 +299,7 @@ const styles = StyleSheet.create({
         borderRadius: 24,
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#F9A828',
+        shadowColor: '#D34E4E',
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.3,
         shadowRadius: 16,
@@ -356,7 +358,7 @@ const styles = StyleSheet.create({
         width: '100%',
         borderRadius: 16,
         overflow: 'hidden',
-        shadowColor: '#F9A828',
+        shadowColor: '#D34E4E',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 12,
@@ -400,7 +402,7 @@ const styles = StyleSheet.create({
     navItemActive: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#F9A828',
+        backgroundColor: '#D34E4E',
         paddingVertical: 10,
         paddingHorizontal: 20,
         borderRadius: 20,
@@ -498,7 +500,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
     },
     confirmButton: {
-        backgroundColor: '#F9A828',
+        backgroundColor: '#D34E4E',
     },
     confirmButtonText: {
         color: '#FFFFFF',

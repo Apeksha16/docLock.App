@@ -150,7 +150,7 @@ export default function FriendsScreen({ onNavigate, userId, userProfile }: Frien
 
             {/* Background Gradient */}
             <LinearGradient
-                colors={['#FFFBEB', '#FFFFFF']} // Very light amber to white
+                colors={['#FEF2F2', '#FFFFFF']} // Red 50 to white
                 style={styles.background}
             />
 
@@ -177,8 +177,8 @@ export default function FriendsScreen({ onNavigate, userId, userProfile }: Frien
                         {/* Stats Cards Row */}
                         <View style={styles.statsRow}>
                             <View style={styles.statCard}>
-                                <View style={[styles.statIconBox, { backgroundColor: '#E0E7FF' }]}>
-                                    <Feather name="file-text" size={20} color="#6366F1" />
+                                <View style={[styles.statIconBox, { backgroundColor: '#FEE2E2' }]}>
+                                    <Feather name="file-text" size={20} color="#D34E4E" />
                                 </View>
                                 <Text style={styles.statNumber}>0</Text>
                                 <Text style={styles.statLabel}>Documents{'\n'}Shared</Text>
@@ -224,10 +224,10 @@ export default function FriendsScreen({ onNavigate, userId, userProfile }: Frien
 
                             {/* Main Box */}
                             <LinearGradient
-                                colors={['#FEF3C7', '#FDE68A']}
+                                colors={['#FEE2E2', '#FECACA']}
                                 style={styles.iconBox}
                             >
-                                <FontAwesome5 name="user-friends" size={48} color="#F9A828" />
+                                <FontAwesome5 name="user-friends" size={48} color="#D34E4E" />
                             </LinearGradient>
                         </View>
 
@@ -241,7 +241,7 @@ export default function FriendsScreen({ onNavigate, userId, userProfile }: Frien
                             onPress={handleAddFriend}
                         >
                             <LinearGradient
-                                colors={['#F9A828', '#D97706']}
+                                colors={['#D34E4E', '#B91C1C']}
                                 start={{ x: 0, y: 0 }}
                                 end={{ x: 1, y: 0 }}
                                 style={styles.addButtonGradient}
@@ -319,8 +319,8 @@ export default function FriendsScreen({ onNavigate, userId, userProfile }: Frien
                         <View style={styles.modalBottomSheet}>
                             <View style={styles.modalHandle} />
 
-                            <View style={[styles.modalIconContainer, { backgroundColor: '#FEF3C7' }]}>
-                                <Feather name="file-text" size={24} color="#F9A828" />
+                            <View style={[styles.modalIconContainer, { backgroundColor: '#FEE2E2' }]}>
+                                <Feather name="file-text" size={24} color="#D34E4E" />
                             </View>
 
                             <Text style={styles.modalTitle}>Request Document</Text>
@@ -343,7 +343,7 @@ export default function FriendsScreen({ onNavigate, userId, userProfile }: Frien
                             <TouchableOpacity
                                 style={[
                                     styles.modalMainButton,
-                                    { backgroundColor: requestItemName.trim() ? '#F9A828' : '#CBD5E1' }
+                                    { backgroundColor: requestItemName.trim() ? '#D34E4E' : '#CBD5E1' }
                                 ]}
                                 onPress={() => handleSendRequest('document')}
                                 disabled={!requestItemName.trim() || isProcessing}
@@ -383,8 +383,8 @@ export default function FriendsScreen({ onNavigate, userId, userProfile }: Frien
                         <View style={styles.modalBottomSheet}>
                             <View style={styles.modalHandle} />
 
-                            <View style={[styles.modalIconContainer, { backgroundColor: '#FEF3C7' }]}>
-                                <Feather name="credit-card" size={24} color="#F9A828" />
+                            <View style={[styles.modalIconContainer, { backgroundColor: '#FEE2E2' }]}>
+                                <Feather name="credit-card" size={24} color="#D34E4E" />
                             </View>
 
                             <Text style={styles.modalTitle}>Request Card</Text>
@@ -407,7 +407,7 @@ export default function FriendsScreen({ onNavigate, userId, userProfile }: Frien
                             <TouchableOpacity
                                 style={[
                                     styles.modalMainButton,
-                                    { backgroundColor: requestItemName.trim() ? '#F9A828' : '#CBD5E1' }
+                                    { backgroundColor: requestItemName.trim() ? '#D34E4E' : '#CBD5E1' }
                                 ]}
                                 onPress={() => handleSendRequest('card')}
                                 disabled={!requestItemName.trim() || isProcessing}
@@ -472,7 +472,7 @@ const FriendItemRow = ({ friend, onDelete, onRequestDoc, onRequestCard }: Friend
         return (
             <View style={{ flexDirection: 'row', height: '100%', alignItems: 'center', paddingLeft: 8 }}>
                 <TouchableOpacity
-                    style={[styles.rightAction, { backgroundColor: '#F9A828', marginRight: 8 }]}
+                    style={[styles.rightAction, { backgroundColor: '#D34E4E', marginRight: 8 }]}
                     onPress={() => {
                         closeSwipeable();
                         onRequestDoc();
@@ -522,7 +522,7 @@ const FriendItemRow = ({ friend, onDelete, onRequestDoc, onRequestCard }: Friend
             >
                 <View style={styles.friendCard}>
                     <LinearGradient
-                        colors={['#FFFFFF', '#FEF3C7']} // White to Amber 100
+                        colors={['#FFFFFF', '#FEF2F2']} // White to Red 50
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={styles.friendCardGradient}
@@ -532,7 +532,7 @@ const FriendItemRow = ({ friend, onDelete, onRequestDoc, onRequestCard }: Friend
                                 {friend.photoURL ? (
                                     <Image source={{ uri: friend.photoURL }} style={styles.avatarImage} />
                                 ) : (
-                                    <View style={[styles.avatarImage, { backgroundColor: '#F9A828', justifyContent: 'center', alignItems: 'center' }]}>
+                                    <View style={[styles.avatarImage, { backgroundColor: '#F59E0B', justifyContent: 'center', alignItems: 'center' }]}>
                                         <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 18 }}>
                                             {(friend.fullName || friend.name || '?')[0].toUpperCase()}
                                         </Text>
@@ -543,7 +543,7 @@ const FriendItemRow = ({ friend, onDelete, onRequestDoc, onRequestCard }: Friend
                                 <Text style={styles.friendName}>{friend.fullName || friend.name || 'Unknown'}</Text>
                                 <Text style={styles.friendDate}>Added {friend.addedAt ? format(new Date(friend.addedAt), 'MMM d, yyyy') : 'Recently'}</Text>
                             </View>
-                            <Feather name="chevron-right" size={20} color="#FDE68A" />
+                            <Feather name="chevron-right" size={20} color="#D34E4E" />
                         </View>
                     </LinearGradient>
                 </View>
@@ -570,7 +570,7 @@ const styles = StyleSheet.create({
         width: 300,
         height: 300,
         borderRadius: 150,
-        backgroundColor: '#FEF3C7', // Amber 100
+        backgroundColor: '#FEE2E2', // Red 100
         opacity: 0.6,
     },
     header: {
@@ -623,7 +623,7 @@ const styles = StyleSheet.create({
         borderRadius: 30,
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#F9A828',
+        shadowColor: '#D34E4E',
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.2,
         shadowRadius: 20,
@@ -669,7 +669,7 @@ const styles = StyleSheet.create({
         width: '100%',
         height: 56,
         borderRadius: 16, // Changed from 28 to match rounded rectangle design
-        shadowColor: '#F9A828',
+        shadowColor: '#D34E4E',
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.3,
         shadowRadius: 16,
@@ -739,7 +739,7 @@ const styles = StyleSheet.create({
         borderRadius: 24,
         padding: 1, // For gradient border effect if needed, but here just container
         marginBottom: 0,
-        shadowColor: '#F9A828',
+        shadowColor: '#D34E4E',
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.15, // Softer pink shadow
         shadowRadius: 16,
@@ -752,7 +752,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#F9A828', // Keep the border requested
+        borderColor: '#D34E4E', // Red border
     },
     friendHeader: {
         flexDirection: 'row',
@@ -770,10 +770,10 @@ const styles = StyleSheet.create({
         width: 56,
         height: 56,
         borderRadius: 20, // Squircle shape
-        backgroundColor: '#F9A828', // Pink to match theme
+        backgroundColor: '#D34E4E', // Red to match theme
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#F9A828',
+        shadowColor: '#D34E4E',
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.4,
         shadowRadius: 12,
