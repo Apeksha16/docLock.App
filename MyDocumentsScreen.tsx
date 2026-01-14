@@ -9,8 +9,9 @@ import * as ImagePicker from 'expo-image-picker';
 import { firestoreService } from './services/firestoreService';
 import { storageService } from './services/storageService';
 import BottomNavBar from './components/BottomNavBar';
-import { WebView } from 'react-native-webview';
-import { Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import { Linking, Platform } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -96,7 +97,6 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
                     setViewingFile(null);
                 }
             } catch (error) {
-                console.error(error);
                 Alert.alert('Error', 'Failed to delete item.');
             }
         }
@@ -134,7 +134,6 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
                         await firestoreService.createFolder(userId, nameToUse, currentFolderId);
                     }
                 } catch (error) {
-                    console.error(error);
                     Alert.alert('Error', isRename ? 'Failed to rename folder.' : 'Failed to create folder.');
                 }
             };
@@ -223,7 +222,6 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
                 setUploadDocName(asset.name);
             }
         } catch (error) {
-            console.error(error);
             Alert.alert('Error', 'Failed to pick file.');
         }
     };
@@ -248,15 +246,6 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
             const sizeMB = (size / (1024 * 1024)).toFixed(2) + ' MB';
             const date = new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 
-            // Pass metadata to services
-            // Note: firestoreService.saveDocumentMetadata needs to be updated to accept object or correct args
-            // Earlier it was: saveDocumentMetadata(userId, name, size, downloadUrl, parentId)
-            // Let's assume we update usage match definition: 
-            // saveDocumentMetadata(userId, { name, type, size, meta, downloadURL, parentId })
-
-            // Checking definition from previous turn: 
-            // saveDocumentMetadata(userId: string, data: DocumentMetadata)
-
             await firestoreService.saveDocumentMetadata(userId, {
                 name: nameToUse,
                 type: 'file',
@@ -271,10 +260,42 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
             setSelectedFile(null);
 
         } catch (error) {
-            console.error(error);
             Alert.alert('Upload Failed', 'There was an error uploading your file.');
         } finally {
             setIsUploading(false);
+        }
+    };
+
+    const handleOpenPdf = async (pdfUrl: string, fileName: string) => {
+        try {
+            setIsViewerLoading(true);
+            
+            // Download PDF to local file system
+            const fileUri = FileSystem.documentDirectory + fileName;
+            const downloadResult = await FileSystem.downloadAsync(pdfUrl, fileUri);
+            
+            // Check if sharing is available
+            const isAvailable = await Sharing.isAvailableAsync();
+            
+            if (isAvailable) {
+                // Open with system PDF viewer
+                await Sharing.shareAsync(downloadResult.uri, {
+                    mimeType: 'application/pdf',
+                    dialogTitle: 'Open PDF',
+                });
+            } else {
+                // Fallback: Try to open with Linking
+                const canOpen = await Linking.canOpenURL(downloadResult.uri);
+                if (canOpen) {
+                    await Linking.openURL(downloadResult.uri);
+                } else {
+                    Alert.alert('Error', 'Unable to open PDF. Please install a PDF viewer app.');
+                }
+            }
+        } catch (error) {
+            Alert.alert('Error', 'Failed to open PDF. Please try again.');
+        } finally {
+            setIsViewerLoading(false);
         }
     };
 
@@ -693,17 +714,39 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
                                                     onLoadEnd={() => setIsViewerLoading(false)}
                                                 />
                                             ) : isPdf ? (
-                                                <WebView
-                                                    source={{
-                                                        uri: Platform.OS === 'android'
-                                                            ? `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(viewingFile.downloadURL)}`
-                                                            : viewingFile.downloadURL
-                                                    }}
-                                                    style={{ flex: 1 }}
-                                                    onLoadEnd={() => setIsViewerLoading(false)}
-                                                // Hide webview until loaded to avoid flicker?
-                                                // opacity: isViewerLoading ? 0 : 1 
-                                                />
+                                                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+                                                    <Feather name="file-text" size={120} color="#3B82F6" />
+                                                    <Text style={{ marginTop: 24, fontSize: 20, fontWeight: '600', color: '#1E293B', textAlign: 'center' }}>
+                                                        {viewingFile.name}
+                                                    </Text>
+                                                    <Text style={{ marginTop: 8, fontSize: 14, color: '#64748B', textAlign: 'center', marginBottom: 32 }}>
+                                                        Tap the button below to open this PDF with your device's default PDF viewer
+                                                    </Text>
+                                                    <TouchableOpacity
+                                                        style={{
+                                                            backgroundColor: '#3B82F6',
+                                                            paddingHorizontal: 32,
+                                                            paddingVertical: 16,
+                                                            borderRadius: 12,
+                                                            flexDirection: 'row',
+                                                            alignItems: 'center',
+                                                            gap: 8
+                                                        }}
+                                                        onPress={() => viewingFile.downloadURL && handleOpenPdf(viewingFile.downloadURL, viewingFile.name)}
+                                                        disabled={isViewerLoading}
+                                                    >
+                                                        {isViewerLoading ? (
+                                                            <ActivityIndicator size="small" color="#FFFFFF" />
+                                                        ) : (
+                                                            <>
+                                                                <Feather name="external-link" size={20} color="#FFFFFF" />
+                                                                <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '600' }}>
+                                                                    Open PDF
+                                                                </Text>
+                                                            </>
+                                                        )}
+                                                    </TouchableOpacity>
+                                                </View>
                                             ) : (
                                                 <View style={[styles.filePreviewPlaceholder, { zIndex: 5 }]}>
                                                     <Feather name="file-text" size={120} color="#CBD5E1" />

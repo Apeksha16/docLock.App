@@ -15,12 +15,12 @@ export default function SplashScreen() {
     const fadeAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
-        // Fade in logo
-        Animated.timing(fadeAnim, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: true,
-        }).start();
+        try {
+            Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 1000,
+                useNativeDriver: true,
+            }).start();
 
         // Pulse animation for dots
         const animateDot = (dot: Animated.Value, delay: number) => {
@@ -41,17 +41,20 @@ export default function SplashScreen() {
             ).start();
         };
 
-        animateDot(dot1, 0);
-        animateDot(dot2, 200);
-        animateDot(dot3, 400);
-        animateDot(dot4, 600);
+            animateDot(dot1, 0);
+            animateDot(dot2, 200);
+            animateDot(dot3, 400);
+            animateDot(dot4, 600);
+        } catch (error) {
+            // Animation error
+        }
     }, []);
 
-    // Responsive calculations
-    const cardWidth = Math.min(width * 0.85, 360); // Slightly smaller max width for elegance
+    const cardWidth = Math.min(width * 0.85, 360);
     const isTablet = width > 768;
 
-    return (
+    try {
+        return (
         <View style={styles.container}>
             <LinearGradient
                 // Refined gradient from Top-Left (Blueish) to Bottom-Right (Pinkish/NavajoWhite)
@@ -117,7 +120,14 @@ export default function SplashScreen() {
                 </View>
             </LinearGradient>
         </View>
-    );
+        );
+    } catch (error) {
+        return (
+            <View style={styles.container}>
+                <Text style={{ color: 'red' }}>Splash Error: {error?.message}</Text>
+            </View>
+        );
+    }
 }
 
 const styles = StyleSheet.create({

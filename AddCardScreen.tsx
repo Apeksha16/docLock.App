@@ -81,20 +81,15 @@ export default function AddCardScreen({ onNavigate, userId, cardToEdit }: AddCar
     // Initialize state with cardToEdit using useEffect
     useEffect(() => {
         if (cardToEdit) {
-            console.log("useEffect: cardToEdit detected. Initializing form for edit.", cardToEdit);
-            setLoading(true); // temporary visual cue if needed, or just set data
+            setLoading(true);
             try {
                 setCardType(cardToEdit.cardType || 'debit');
                 setCardName(cardToEdit.cardName || '');
                 setHolderName(cardToEdit.holderName || 'NEW USER');
-                console.log(`useEffect: Set cardType: ${cardToEdit.cardType}, cardName: ${cardToEdit.cardName}, holderName: ${cardToEdit.holderName}`);
 
-                // Check if this is a legacy card with missing encrypted data
                 const hasEncryptedData = cardToEdit.cardNumber && cardToEdit.cardNumber.trim() !== '';
 
                 if (!hasEncryptedData) {
-                    // Legacy card - encrypted fields are missing
-                    console.log("useEffect: Legacy card detected with missing encrypted data.");
                     Alert.alert(
                         "Card Data Unavailable",
                         "This card was created before encryption was implemented. Sensitive details (card number, expiry, CVV) are not available for editing. Please delete this card and add it again.",
@@ -104,10 +99,8 @@ export default function AddCardScreen({ onNavigate, userId, cardToEdit }: AddCar
                     return;
                 }
 
-                // Decrypt
                 if (cardToEdit.cardNumber) {
                     const decryptedNum = encryptionService.decryptData(cardToEdit.cardNumber);
-                    console.log("useEffect: Decrypted card number.");
                     setCardNumber(formatCardNumber(decryptedNum));
 
                     if (decryptedNum.length >= 13 && validateLuhnCheck(decryptedNum)) {
@@ -117,26 +110,20 @@ export default function AddCardScreen({ onNavigate, userId, cardToEdit }: AddCar
 
                 if (cardToEdit.expiry) {
                     const decryptedExpiry = encryptionService.decryptData(cardToEdit.expiry);
-                    console.log("useEffect: Decrypted expiry.");
                     setExpiry(decryptedExpiry);
                     setDateValidation('valid');
                 }
 
                 if (cardToEdit.cvv) {
                     const decryptedCvv = encryptionService.decryptData(cardToEdit.cvv);
-                    console.log("useEffect: Decrypted CVV.");
                     setCvv(decryptedCvv);
                 }
             } catch (e) {
-                console.error("Error decrypting card for edit", e);
                 Alert.alert("Error", "Could not decrypt card details.");
             } finally {
                 setLoading(false);
-                console.log("useEffect: Card edit initialization complete.");
             }
         } else {
-            console.log("useEffect: No cardToEdit. Resetting form for new card.");
-            // Reset for Add New (if component is reused)
             setCardType('debit');
             setCardName('');
             setCardNumber('');
@@ -317,15 +304,6 @@ export default function AddCardScreen({ onNavigate, userId, cardToEdit }: AddCar
                 cvv
             };
 
-            console.log("handleAddCard: Sending card data to service:", {
-                cardType: cardData.cardType,
-                cardName: cardData.cardName,
-                cardNumberLength: cardData.cardNumber?.length,
-                expiryValue: cardData.expiry,
-                cvvLength: cardData.cvv?.length,
-                holderName: cardData.holderName
-            });
-
             if (cardToEdit) {
                 await firestoreService.updateCard(userId, cardToEdit.id, cardData);
                 Alert.alert('Success', 'Card updated successfully!', [
@@ -338,7 +316,6 @@ export default function AddCardScreen({ onNavigate, userId, cardToEdit }: AddCar
                 ]);
             }
         } catch (error) {
-            console.error(error);
             Alert.alert('Error', 'Failed to save card.');
         } finally {
             setLoading(false);

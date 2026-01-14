@@ -146,7 +146,7 @@ export default function NotificationScreen({ onNavigate, notifications = [], use
         try {
             await notificationService.toggleReadStatus(userId, id, currentStatus);
         } catch (error) {
-            console.error("Failed to toggle read status:", error);
+            // Error handled by UI
         }
     };
 
@@ -156,7 +156,7 @@ export default function NotificationScreen({ onNavigate, notifications = [], use
         try {
             await notificationService.deleteNotification(userId, id);
         } catch (error) {
-            console.error("Failed to delete notification:", error);
+            // Error handled by UI
         }
     };
 

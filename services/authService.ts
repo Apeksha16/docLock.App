@@ -1,36 +1,17 @@
-import {
-    auth
-} from "../firebaseConfig";
-import {
-    signInWithPhoneNumber,
-    ApplicationVerifier,
-    PhoneAuthProvider,
-    signInWithCredential,
-    signOut,
-    onAuthStateChanged,
-    User
-} from "firebase/auth";
+import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { loggerService } from "./loggerService";
 
 export const authService = {
     /**
      * Send OTP to the provided phone number
+     * React Native Firebase uses native phone auth - no reCAPTCHA verifier needed
      */
-    sendOtp: async (phoneNumber: string, recaptchaVerifier?: ApplicationVerifier) => {
+    sendOtp: async (phoneNumber: string) => {
         try {
             loggerService.logRequest('authService.sendOtp', { phoneNumber });
-            // If explicit verifier not provided, use a dummy one (works ONLY if appVerificationDisabledForTesting is true)
-            // We must mock internal methods like _reset that the SDK calls
-            const verifier = recaptchaVerifier || {
-                type: 'recaptcha',
-                verify: () => Promise.resolve('dummy-token'),
-                clear: () => { },
-                _reset: () => { } // Mocking internal/private method found in error logs
-            } as any;
-
-            const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, verifier);
-            loggerService.logResponse('authService.sendOtp', { verificationId: confirmationResult.verificationId });
-            return confirmationResult.verificationId;
+            const confirmation = await auth().signInWithPhoneNumber(phoneNumber);
+            loggerService.logResponse('authService.sendOtp', { verificationId: confirmation.verificationId });
+            return confirmation.verificationId;
         } catch (error) {
             loggerService.logApiError('authService.sendOtp', error);
             throw error;
@@ -43,9 +24,9 @@ export const authService = {
     verifyOtp: async (verificationId: string, code: string) => {
         try {
             loggerService.logRequest('authService.verifyOtp', { verificationId, code });
-            const credential = PhoneAuthProvider.credential(verificationId, code);
-            const result = await signInWithCredential(auth, credential);
-            loggerService.logResponse('authService.verifyOtp', { uid: result.user.uid });
+            const credential = auth.PhoneAuthProvider.credential(verificationId, code);
+            await auth().signInWithCredential(credential);
+            loggerService.logResponse('authService.verifyOtp', { success: true });
             return true;
         } catch (error) {
             loggerService.logApiError('authService.verifyOtp', error);
@@ -58,9 +39,9 @@ export const authService = {
      */
     logout: async () => {
         try {
-            await signOut(auth);
+            await auth().signOut();
         } catch (error) {
-            console.error("Logout Error:", error);
+            loggerService.logApiError('authService.logout', error);
             throw error;
         }
     },
@@ -68,14 +49,14 @@ export const authService = {
     /**
      * Listen for authentication state changes
      */
-    subscribeToAuthChanges: (callback: (user: User | null) => void) => {
-        return onAuthStateChanged(auth, callback);
+    subscribeToAuthChanges: (callback: (user: FirebaseAuthTypes.User | null) => void) => {
+        return auth().onAuthStateChanged(callback);
     },
 
     /**
      * Get the current user
      */
     getCurrentUser: () => {
-        return auth.currentUser;
+        return auth().currentUser;
     }
 };

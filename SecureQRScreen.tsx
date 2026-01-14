@@ -37,7 +37,6 @@ const SecureQRCardItem = ({ qr, onDelete, onEdit, styles }: SecureQRCardItemProp
 
             await Sharing.shareAsync(uri);
         } catch (error) {
-            console.error("Download failed", error);
             Alert.alert("Error", "Failed to download card.");
         } finally {
             setIsDownloading(false);
@@ -195,7 +194,6 @@ export default function SecureQRScreen({ onNavigate, userId }: SecureQRScreenPro
                 const docs = await firestoreService.getAllFiles(userId);
                 setAllDocuments(docs);
             } catch (error) {
-                console.error("Failed to fetch documents", error);
                 Alert.alert("Error", "Could not fetch documents selection.");
             } finally {
                 setLoadingDocs(false);
@@ -248,7 +246,6 @@ export default function SecureQRScreen({ onNavigate, userId }: SecureQRScreenPro
             setSelectedDocs([]);
             // fetchQRs(); // Handled by subscription
         } catch (error) {
-            console.error("Failed to save QR", error);
             Alert.alert("Error", "Failed to save Secure QR.");
         } finally {
             setSaving(false);
@@ -270,7 +267,6 @@ export default function SecureQRScreen({ onNavigate, userId }: SecureQRScreenPro
             setQrToDelete(null);
             // fetchQRs(); // Handled by subscription
         } catch (error) {
-            console.error("Failed to delete QR", error);
             Alert.alert("Error", "Failed to remove QR.");
         } finally {
             setDeleting(false);

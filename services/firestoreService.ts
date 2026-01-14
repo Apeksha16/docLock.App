@@ -19,7 +19,6 @@ import { db } from "../firebaseConfig";
 import { loggerService } from "./loggerService";
 import { encryptionService } from "./encryptionService";
 
-// Helper to update parent folder's item count text
 const updateParentMetaCount = async (userId: string, parentId: string | null, incrementBy: number) => {
     if (!parentId) return;
     try {
@@ -30,7 +29,6 @@ const updateParentMetaCount = async (userId: string, parentId: string | null, in
             const data = parentSnap.data();
             let currentCount = 0;
 
-            // Parse existing "X items" string
             if (data.meta && typeof data.meta === 'string' && data.meta.includes('items')) {
                 const parts = data.meta.split(' ');
                 currentCount = parseInt(parts[0], 10);
@@ -44,47 +42,39 @@ const updateParentMetaCount = async (userId: string, parentId: string | null, in
             });
         }
     } catch (error) {
-        console.error('Failed to update parent folder count:', error);
+        loggerService.logApiError('firestoreService.updateParentMetaCount', error);
     }
 };
-
-// Standalone Notification Helper
 const addNotificationHelper = async (userId: string, notification: { title: string, message: string, type: 'qr' | 'system' | 'alert' }) => {
     if (!userId) {
-        console.warn("addNotificationHelper skipped: No userId provided.");
         return;
     }
     try {
-        console.log("DEBUG: addNotificationHelper called", notification);
         const notifRef = collection(db, "users", userId, "notifications");
 
-        // 1. Add new notification
         await addDoc(notifRef, {
             ...notification,
             read: false,
             createdAt: new Date().toISOString(),
             timestamp: Date.now()
         });
-        console.log("DEBUG: Notification added successfully");
 
-        // 2. Enforce Limit: Keep only latest 20
         const q = query(notifRef, orderBy('timestamp', 'desc'));
         const snapshot = await getDocs(q);
 
         if (snapshot.size > 20) {
             const batch = writeBatch(db);
-            const docsToDelete = snapshot.docs.slice(20); // Get all docs after the 20th
+            const docsToDelete = snapshot.docs.slice(20);
 
             docsToDelete.forEach(doc => {
                 batch.delete(doc.ref);
             });
 
             await batch.commit();
-            console.log(`DEBUG: Flushed ${docsToDelete.length} old notifications`);
         }
 
     } catch (error) {
-        console.error("Failed to add notification", error);
+        loggerService.logApiError('firestoreService.addNotificationHelper', error);
     }
 };
 
@@ -153,12 +143,10 @@ export const firestoreService = {
         try {
             loggerService.logRequest('firestoreService.checkUserExistsByMobile', { mobileNumber });
 
-            // Normalize inputs to check both formats (with and without +91)
-            const cleanNumber = mobileNumber.replace(/\D/g, '').slice(-10); // Last 10 digits
+            const cleanNumber = mobileNumber.replace(/\D/g, '').slice(-10);
             const formattedNumber = `+91${cleanNumber}`;
 
             const usersRef = collection(db, "users");
-            // Check for EITHER raw 10 digits OR +91 format
             const q = query(usersRef, where("mobile", "in", [cleanNumber, formattedNumber]));
 
             const querySnapshot = await getDocs(q);
@@ -222,7 +210,6 @@ export const firestoreService = {
             loggerService.logRequest('firestoreService.updateStorageUsage', { userId, sizeChangeBytes });
             const userRef = doc(db, "users", userId);
 
-            // Atomic update
             await updateDoc(userRef, {
                 storageUsed: increment(sizeChangeBytes)
             });
@@ -313,10 +300,8 @@ export const firestoreService = {
         try {
             loggerService.logRequest('firestoreService.addFriend', { currentUserId, friendUserId });
 
-            // Reference to the new friend document in the 'friends' subcollection
             const friendRef = doc(db, "users", currentUserId, "friends", friendUserId);
 
-            // Store minimal friend data
             await setDoc(friendRef, {
                 uid: friendUserId,
                 fullName: friendData.fullName || 'Unknown',
@@ -395,7 +380,7 @@ export const firestoreService = {
         try {
             loggerService.logRequest('firestoreService.getDocuments', { userId, parentId });
             const docsRef = collection(db, "users", userId, "documents");
-            const q = query(docsRef, where("parentId", "==", parentId), where("deleted", "!=", true)); // Basic soft-delete support
+            const q = query(docsRef, where("parentId", "==", parentId), where("deleted", "!=", true));
             const snapshot = await getDocs(q);
 
             const documents = snapshot.docs.map(doc => ({
@@ -421,7 +406,7 @@ export const firestoreService = {
             await addDoc(docsRef, {
                 type: 'folder',
                 name: name,
-                parentId: parentId || null, // Ensure null if undefined
+                parentId: parentId || null,
                 createdAt: new Date().toISOString(),
                 meta: '0 items',
                 deleted: false
@@ -447,23 +432,21 @@ export const firestoreService = {
             loggerService.logRequest('firestoreService.saveDocumentMetadata', { userId, data });
             const docsRef = collection(db, "users", userId, "documents");
 
-            // Atomic operations: Add doc + Increment count
             const batch = writeBatch(db);
 
-            const newDocRef = doc(docsRef); // Generate ID
+            const newDocRef = doc(docsRef);
 
             batch.set(newDocRef, {
                 type: data.type || 'file',
                 name: data.name,
-                parentId: data.parentId || null, // Ensure null if undefined
+                parentId: data.parentId || null,
                 meta: data.meta,
-                size: data.size, // Store actual bytes if passed
+                size: data.size,
                 downloadURL: data.downloadURL,
                 createdAt: new Date().toISOString(),
                 deleted: false
             });
 
-            // Increment user's document count
             const userRef = doc(db, "users", userId);
             batch.update(userRef, {
                 documentsCount: increment(1)
@@ -471,7 +454,6 @@ export const firestoreService = {
 
             await batch.commit();
 
-            // Update parent folder count (separate op)
             if (data.parentId) {
                 await updateParentMetaCount(userId, data.parentId, 1);
             }
@@ -491,25 +473,16 @@ export const firestoreService = {
             loggerService.logRequest('firestoreService.deleteDocument', { userId, docId });
             const docRef = doc(db, "users", userId, "documents", docId);
 
-            // Check if it's already deleted to avoid double decrement if called multiple times (optional safety)
-            // For now, simpler implementation assuming UI handles single click
-
             const batch = writeBatch(db);
 
             batch.update(docRef, { deleted: true });
 
-            // Decrement user's document count
             const userRef = doc(db, "users", userId);
             batch.update(userRef, {
                 documentsCount: increment(-1)
             });
 
             await batch.commit();
-
-            // Find parentId to update count? 
-            // Limitation: deleteDocument doesn't take parentId. We need to fetch it first or pass it.
-            // For now, let's update deleteDocument signature or fetch the doc.
-            // Fetching doc is safer to know the parent.
 
             const docSnap = await getDoc(docRef);
             if (docSnap.exists()) {
@@ -531,52 +504,31 @@ export const firestoreService = {
      */
     addCard: async (userId: string, cardData: any) => {
         try {
-            console.log("DEBUG: addCard called", { userId, cardType: cardData?.cardType });
-
             if (!userId) {
                 throw new Error("addCard: userId is missing");
             }
 
-            loggerService.logRequest('firestoreService.addCard', { userId, cardType: cardData.cardType });
-
-            // 1. Encrypt Sensitive Data
-            console.log("DEBUG: addCard - Input data:", {
-                cardNumber: cardData.cardNumber ? `${cardData.cardNumber.length} chars` : 'EMPTY',
-                cvv: cardData.cvv ? `${cardData.cvv.length} chars` : 'EMPTY',
-                expiry: cardData.expiry || 'EMPTY'
-            });
+            loggerService.logRequest('firestoreService.addCard', { userId, cardType: cardData?.cardType });
 
             const encryptedCardNumber = encryptionService.encryptData(String(cardData.cardNumber || ''));
             const encryptedCvv = encryptionService.encryptData(String(cardData.cvv || ''));
             const encryptedExpiry = encryptionService.encryptData(String(cardData.expiry || ''));
-
-            console.log("DEBUG: addCard - Encrypted results:", {
-                cardNumber: encryptedCardNumber ? `${encryptedCardNumber.length} chars` : 'EMPTY',
-                cvv: encryptedCvv ? `${encryptedCvv.length} chars` : 'EMPTY',
-                expiry: encryptedExpiry ? `${encryptedExpiry.length} chars` : 'EMPTY'
-            });
 
             const encryptedCard = {
                 ...cardData,
                 cardNumber: encryptedCardNumber,
                 cvv: encryptedCvv,
                 expiry: encryptedExpiry,
-                // Keep some fields plaintext for use if needed
                 cardNumberMasked: String(cardData.cardNumber || '').slice(-4),
                 createdAt: new Date().toISOString()
             };
-            console.log("DEBUG: Encryption done. Saving...");
-
-            // Use batch to add card and increment cardsCount atomically
             const batch = writeBatch(db);
 
-            // Create reference for new card with auto-generated ID
             const cardsCollectionRef = collection(db, "users", userId, "cards");
             const newCardRef = doc(cardsCollectionRef);
 
             batch.set(newCardRef, encryptedCard);
 
-            // Increment user's cards count
             const userRef = doc(db, "users", userId);
             batch.update(userRef, {
                 cardsCount: increment(1)
@@ -584,16 +536,14 @@ export const firestoreService = {
 
             await batch.commit();
 
-            // Notify
             await addNotificationHelper(userId, {
                 title: 'New Card Added',
                 message: `A new ${cardData.cardType || 'credit'} card ending in ****${String(cardData.cardNumber || '').slice(-4)} has been added to your vault.`,
-                type: 'system' // Using 'system' or 'alert' as it's a card
+                type: 'system'
             });
 
             loggerService.logResponse('firestoreService.addCard', { success: true });
         } catch (error) {
-            console.error("DEBUG: addCard error", error);
             loggerService.logApiError('firestoreService.addCard', error);
             throw error;
         }
@@ -606,7 +556,7 @@ export const firestoreService = {
         try {
             loggerService.logRequest('firestoreService.getCards', { userId });
             const cardsRef = collection(db, "users", userId, "cards");
-            const q = query(cardsRef); // Add orderBy if needed
+            const q = query(cardsRef);
             const snapshot = await getDocs(q);
 
             const cards = snapshot.docs.map(doc => ({
@@ -628,7 +578,6 @@ export const firestoreService = {
     subscribeToCards: (userId: string, onUpdate: (cards: any[]) => void) => {
         loggerService.logRequest('firestoreService.subscribeToCards', { userId });
         const cardsRef = collection(db, "users", userId, "cards");
-        // Optional: Order by creation time if needed. Assuming default or client sort.
         const unsubscribe = onSnapshot(cardsRef, (snapshot) => {
             const cards = snapshot.docs.map(doc => ({
                 id: doc.id,
@@ -650,14 +599,12 @@ export const firestoreService = {
             loggerService.logRequest('firestoreService.deleteCard', { userId, cardId });
             const cardRef = doc(db, "users", userId, "cards", cardId);
 
-            // Fetch card data before deleting to get the name for notification
             const cardSnap = await getDoc(cardRef);
             const cardData = cardSnap.exists() ? cardSnap.data() : null;
             const cardName = cardData?.cardName || 'Card';
 
             await deleteDoc(cardRef);
 
-            // Notify with card name
             await addNotificationHelper(userId, {
                 title: 'Card Deleted',
                 message: `"${cardName}" has been removed from your vault.`,
@@ -679,7 +626,6 @@ export const firestoreService = {
             loggerService.logRequest('firestoreService.updateCard', { userId, cardId, cardData });
             const cardRef = doc(db, "users", userId, "cards", cardId);
 
-            // Encrypt data if present in updates
             const updates: any = { ...cardData };
 
             if (updates.cardNumber) {
@@ -697,7 +643,6 @@ export const firestoreService = {
 
             await setDoc(cardRef, updates, { merge: true });
 
-            // Notify
             await addNotificationHelper(userId, {
                 title: 'Card Updated',
                 message: `Card "${cardData.cardName || 'Card'}" has been updated.`,
@@ -780,20 +725,17 @@ export const firestoreService = {
 
             const batch = writeBatch(db);
 
-            // New QR Ref
             const qrsRef = collection(db, "users", userId, "qrs");
             const newQrRef = doc(qrsRef);
 
             const newItem = {
                 ...qrData,
                 createdAt: new Date().toISOString(),
-                // Format date for display: DD/MM/YYYY
                 date: new Date().toLocaleDateString('en-GB')
             };
 
             batch.set(newQrRef, newItem);
 
-            // Increment qrsCount
             const userRef = doc(db, "users", userId);
             batch.update(userRef, {
                 qrsCount: increment(1)
@@ -801,7 +743,6 @@ export const firestoreService = {
 
             await batch.commit();
 
-            // Notify
             await addNotificationHelper(userId, {
                 title: 'New QR Created',
                 message: `Secure QR "${qrData.label}" has been created with ${qrData.filesCount} files.`,
@@ -822,13 +763,11 @@ export const firestoreService = {
         try {
             loggerService.logRequest('firestoreService.sendRequest', { requesterId, targetId, targetName, type, item });
 
-            // 1. Increment Active Requests
             const userRef = doc(db, "users", requesterId);
             await updateDoc(userRef, {
                 activeRequestsCount: increment(1)
             });
 
-            // 2. Add Notification (Local confirmation)
             await addNotificationHelper(requesterId, {
                 title: 'Request Sent',
                 message: `You requested a ${type} (${item}) from ${targetName}.`,
@@ -876,7 +815,6 @@ export const firestoreService = {
 
             loggerService.logResponse('firestoreService.updateSecureQR', { success: true });
 
-            // Notify
             await addNotificationHelper(userId, {
                 title: 'Secure QR Updated',
                 message: `Secure QR "${qrLabel}" and its linked documents have been updated.`,
@@ -900,7 +838,6 @@ export const firestoreService = {
             const qrRef = doc(db, "users", userId, "qrs", qrId);
             batch.delete(qrRef);
 
-            // Decrement qrsCount
             const userRef = doc(db, "users", userId);
             batch.update(userRef, {
                 qrsCount: increment(-1)
@@ -910,7 +847,6 @@ export const firestoreService = {
 
             loggerService.logResponse('firestoreService.deleteSecureQR', { success: true });
 
-            // Notify
             await addNotificationHelper(userId, {
                 title: 'Secure QR Deleted',
                 message: `Secure QR "${qrLabel}" has been permanently removed.`,

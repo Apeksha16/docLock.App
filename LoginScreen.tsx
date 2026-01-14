@@ -11,11 +11,10 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
 import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { authService } from './services/authService';
 import { firestoreService } from './services/firestoreService';
-import { app } from './firebaseConfig';
 import { Alert } from 'react-native';
 
 // Props for navigation callback
@@ -87,15 +86,16 @@ export default function LoginScreen({ onNavigate }: LoginScreenProps) {
         }
     };
 
-    const recaptchaVerifier = React.useRef(null);
     const [isLoading, setIsLoading] = useState(false);
 
     const handleSendOtp = async () => {
-        if (!isValidMobile) return;
+        if (!isValidMobile) {
+            return;
+        }
 
         setIsLoading(true);
+
         try {
-            // 1. Check if user exists in Firestore
             let userExists = false;
             try {
                 userExists = await firestoreService.checkUserExistsByMobile(mobileNumber);
@@ -112,7 +112,6 @@ export default function LoginScreen({ onNavigate }: LoginScreenProps) {
             }
 
             if (!userExists) {
-                // User does not exist -> Redirect to Signup
                 setIsLoading(false);
                 Alert.alert(
                     "New User",
@@ -120,7 +119,9 @@ export default function LoginScreen({ onNavigate }: LoginScreenProps) {
                     [
                         {
                             text: "Create Account",
-                            onPress: () => onNavigate('signup', mobileNumber)
+                            onPress: () => {
+                                onNavigate('signup', mobileNumber);
+                            }
                         },
                         {
                             text: "Cancel",
@@ -131,17 +132,11 @@ export default function LoginScreen({ onNavigate }: LoginScreenProps) {
                 return;
             }
 
-            // 2. User Exists -> Proceed to Login
             const phoneNumber = `+91${mobileNumber}`;
-
-            // Pass undefined for verifier to use the Dummy Verifier in authService IF on Simulator.
-            // On Real Device, pass the actual reCAPTCHA verifier.
-            const verifier = (Device.isDevice && recaptchaVerifier.current) ? recaptchaVerifier.current : undefined;
-            const verificationId = await authService.sendOtp(phoneNumber, verifier);
+            const verificationId = await authService.sendOtp(phoneNumber);
             onNavigate('otp', mobileNumber, verificationId);
         } catch (error: any) {
-            console.error(error);
-            alert(`Error: ${error.message}`);
+            alert(`Error: ${error.message}\n${error.code || ''}`);
         } finally {
             setIsLoading(false);
         }
@@ -152,11 +147,6 @@ export default function LoginScreen({ onNavigate }: LoginScreenProps) {
             styles.container,
             { justifyContent: isTablet ? 'center' : 'flex-end' }
         ]}>
-            <FirebaseRecaptchaVerifierModal
-                ref={recaptchaVerifier}
-                firebaseConfig={app.options}
-                attemptInvisibleVerification={false}
-            />
             {/* Background Gradient similar to design (Dark Blue/indigo) */}
             <LinearGradient
                 colors={['#1e1b4b', '#312e81', '#1e1b4b']} // Deep indigo/slate
@@ -243,6 +233,11 @@ export default function LoginScreen({ onNavigate }: LoginScreenProps) {
                     <MaterialCommunityIcons name="lock" size={12} color="#94A3B8" />
                     <Text style={styles.securityText}>Secured with 256-bit encryption</Text>
                 </View>
+
+                {/* Version Number */}
+                <Text style={styles.versionText}>
+                    v{Constants.expoConfig?.version || '1.0.0'}
+                </Text>
 
             </View>
         </View>
@@ -398,5 +393,12 @@ const styles = StyleSheet.create({
         opacity: 0.7,
         shadowOpacity: 0,
         elevation: 0,
+    },
+    versionText: {
+        fontSize: 10,
+        color: '#CBD5E1',
+        marginTop: 16,
+        fontWeight: '400',
+        letterSpacing: 0.3,
     },
 });

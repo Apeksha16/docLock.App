@@ -83,7 +83,7 @@ export default function FriendsScreen({ onNavigate, userId, userProfile }: Frien
             setFriends(prev => prev.filter(f => f.id !== selectedFriend.id));
             setRemoveModalVisible(false);
         } catch (error) {
-            console.error("Failed to remove friend", error);
+            // Error handled by UI
         } finally {
             setIsProcessing(false);
             setSelectedFriend(null);
@@ -98,7 +98,7 @@ export default function FriendsScreen({ onNavigate, userId, userProfile }: Frien
             if (type === 'document') setRequestDocVisible(false);
             else setRequestCardVisible(false);
         } catch (error) {
-            console.error("Failed to send request", error);
+            // Error handled by UI
         } finally {
             setIsProcessing(false);
             setSelectedFriend(null);

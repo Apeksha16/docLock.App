@@ -30,7 +30,7 @@ export default function EditNameModal({ visible, onClose, currentName, onSave }:
             await onSave(name.trim());
             onClose();
         } catch (error) {
-            console.error(error);
+            // Error handled by UI
         } finally {
             setLoading(false);
         }

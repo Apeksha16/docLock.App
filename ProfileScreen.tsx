@@ -109,7 +109,7 @@ export default function ProfileScreen({ onNavigate, userProfile, appConfig, user
         try {
             await import('./services/authService').then(m => m.authService.logout());
         } catch (error) {
-            console.error(error);
+            // Error handled by loggerService
         }
     };
 
@@ -146,11 +146,10 @@ export default function ProfileScreen({ onNavigate, userProfile, appConfig, user
             // 1. Get Current User for Auth Deletion
             let currentUser: any = null;
             try {
-                const { getAuth } = await import("firebase/auth");
-                const auth = getAuth();
-                currentUser = auth.currentUser;
+                const auth = (await import('@react-native-firebase/auth')).default();
+                currentUser = auth().currentUser;
             } catch (e) {
-                console.log("Auth instance not found", e);
+                // Auth instance not available
             }
 
             // 2. Delete Data AND Auth

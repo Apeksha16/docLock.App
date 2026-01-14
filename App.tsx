@@ -1,14 +1,12 @@
-// CRITICAL: Load crypto polyfill FIRST before any other imports that might use crypto
 import './crypto-polyfill';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, Text } from 'react-native';
 import { useEffect, useState, useRef } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { app } from './firebaseConfig';
 import { authService } from './services/authService';
 import { firestoreService } from './services/firestoreService';
 import { notificationService } from './services/notificationService';
-import { User } from 'firebase/auth';
+import { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import SplashScreen from './SplashScreen';
 import LoginScreen from './LoginScreen';
 import SignupScreen from './SignupScreen';
@@ -21,9 +19,7 @@ import ProfileScreen from './ProfileScreen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { LogBox } from 'react-native';
 
-// Ignore specific warnings from third-party libraries that we cannot fix directly
 LogBox.ignoreLogs([
-  'FirebaseRecaptcha: Support for defaultProps will be removed',
   'componentWillReceiveProps has been renamed',
 ]);
 
@@ -37,16 +33,13 @@ import AddCardScreen from './AddCardScreen';
 import MyDocumentsScreen from './MyDocumentsScreen';
 
 export default function App() {
-  // Navigation State
   const [currentScreen, setCurrentScreen] = useState<'splash' | 'login' | 'signup' | 'otp' | 'dashboard' | 'notifications' | 'friends' | 'profile' | 'secure-qr' | 'my-cards' | 'add-card' | 'my-documents' | 'about'>('splash');
   const [showSplash, setShowSplash] = useState(true);
   const [mobileNumber, setMobileNumber] = useState('');
   const [verificationId, setVerificationId] = useState('');
   const [fullName, setFullName] = useState('');
-  const [cardToEdit, setCardToEdit] = useState<any>(null); // For editing cards
-
-  // Data State
-  const [user, setUser] = useState<User | null>(null);
+  const [cardToEdit, setCardToEdit] = useState<any>(null);
+  const [user, setUser] = useState<FirebaseAuthTypes.User | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [cards, setCards] = useState<any[]>([]);
@@ -57,9 +50,8 @@ export default function App() {
   const cardsUnsubRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    // Auth Listener
-    const unsubscribeAuth = authService.subscribeToAuthChanges(async (currentUser) => {
-      // 1. Cleanup previous subscriptions
+    try {
+      const unsubscribeAuth = authService.subscribeToAuthChanges(async (currentUser) => {
       if (profileUnsubRef.current) {
         profileUnsubRef.current();
         profileUnsubRef.current = null;
@@ -76,27 +68,36 @@ export default function App() {
       setUser(currentUser);
 
       if (currentUser) {
-        // 2. Fetch App Config (Non-blocking)
         firestoreService.getAppConfig().then((config) => {
           setAppConfig(config);
+        }).catch((error) => {
+          // Error fetching app config
         });
 
-        // 3. Subscribe to Profile
-        profileUnsubRef.current = firestoreService.subscribeToUserProfile(currentUser.uid, (data) => {
-          setUserProfile(data);
-        });
+        try {
+          profileUnsubRef.current = firestoreService.subscribeToUserProfile(currentUser.uid, (data) => {
+            setUserProfile(data);
+          });
+        } catch (error) {
+          // Error subscribing to profile
+        }
 
-        // 4. Subscribe to Notifications
-        notifsUnsubRef.current = notificationService.subscribeToNotifications(currentUser.uid, (notifs) => {
-          setNotifications(notifs);
-        });
+        try {
+          notifsUnsubRef.current = notificationService.subscribeToNotifications(currentUser.uid, (notifs) => {
+            setNotifications(notifs);
+          });
+        } catch (error) {
+          // Error subscribing to notifications
+        }
 
-        // 5. Subscribe to Cards
-        cardsUnsubRef.current = firestoreService.subscribeToCards(currentUser.uid, (data) => {
-          setCards(data);
-        });
+        try {
+          cardsUnsubRef.current = firestoreService.subscribeToCards(currentUser.uid, (data) => {
+            setCards(data);
+          });
+        } catch (error) {
+          // Error subscribing to cards
+        }
       } else {
-        // User logged out
         setUserProfile(null);
         setNotifications([]);
         setCards([]);
@@ -105,14 +106,18 @@ export default function App() {
       }
     });
 
-    // Splash Timer
     const timer = setTimeout(() => {
       setShowSplash(false);
-      // If user is already logged in, go to Dashboard, else Login
-      // We'll let the initial render decide, or update logic here:
-      if (authService.getCurrentUser()) {
-        setCurrentScreen('dashboard');
-      } else {
+      
+      try {
+        const currentUser = authService.getCurrentUser();
+        
+        if (currentUser) {
+          setCurrentScreen('dashboard');
+        } else {
+          setCurrentScreen('login');
+        }
+      } catch (error) {
         setCurrentScreen('login');
       }
     }, 3000);
@@ -121,6 +126,9 @@ export default function App() {
       clearTimeout(timer);
       unsubscribeAuth();
     };
+    } catch (error) {
+      // Error in useEffect
+    }
   }, []);
 
   const handleNavigate = (screen: 'splash' | 'login' | 'signup' | 'otp' | 'dashboard' | 'notifications' | 'friends' | 'profile' | 'secure-qr' | 'my-cards' | 'add-card' | 'my-documents' | 'about', params?: { mobile?: string, verificationId?: string, fullName?: string, cardData?: any }) => {
@@ -133,16 +141,10 @@ export default function App() {
     if (params?.fullName) {
       setFullName(params.fullName);
     }
-    // Set or Clear cardToEdit based on presence of cardData
     if (params?.cardData) {
       setCardToEdit(params.cardData);
     } else if (screen === 'add-card' && !params?.cardData) {
-      // Clearing logic: if going to add-card without data, it's a new add.
-      // But if navigating away, we might want to clear it too?
-      // Simpler: clear it if not provided when navigating to add-card.
       setCardToEdit(null);
-    } else {
-      // For other screens, maybe clear it? Not strictly necessary unless we reuse add-card.
     }
 
     setCurrentScreen(screen);
@@ -157,7 +159,6 @@ export default function App() {
       case 'login':
         return <LoginScreen onNavigate={(screen, mobile, verificationId) => handleNavigate(screen, { mobile, verificationId })} />;
       case 'signup':
-        // Pass mobile number if available (from Login redirect)
         return <SignupScreen mobileNumber={mobileNumber} onNavigate={(screen, mobile, verificationId, fullName) => handleNavigate(screen, { mobile, verificationId, fullName })} />;
       case 'otp':
         return <OtpVerificationScreen mobileNumber={mobileNumber} verificationId={verificationId} fullName={fullName} onNavigate={(screen) => handleNavigate(screen)} />;
@@ -195,33 +196,41 @@ export default function App() {
       case 'about':
         return <AboutScreen onNavigate={(screen) => handleNavigate(screen)} />;
       default:
-        return null; // Should not happen after splash
+        return null;
     }
   };
 
   const showBottomNav = ['dashboard', 'friends', 'profile'].includes(currentScreen);
 
-  return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <View style={styles.container}>
-          <StatusBar style={currentScreen === 'dashboard' || currentScreen === 'notifications' ? "dark" : "light"} />
-          {renderScreen()}
-          {showBottomNav && (
-            <BottomNavBar
-              currentScreen={currentScreen}
-              onNavigate={(screen) => handleNavigate(screen as any)}
-            />
-          )}
-        </View>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
-  );
+  try {
+    return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <View style={styles.container}>
+            <StatusBar style={currentScreen === 'dashboard' || currentScreen === 'notifications' ? "dark" : "light"} />
+            {renderScreen()}
+            {showBottomNav && (
+              <BottomNavBar
+                currentScreen={currentScreen}
+                onNavigate={(screen) => handleNavigate(screen as any)}
+              />
+            )}
+          </View>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    );
+  } catch (error) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ color: 'white' }}>Error: {error?.message || 'Unknown error'}</Text>
+      </View>
+    );
+  }
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#111827', // Match dark theme
+    backgroundColor: '#111827',
   },
 });

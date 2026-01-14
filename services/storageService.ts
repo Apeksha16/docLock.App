@@ -19,17 +19,13 @@ export const storageService = {
             const blob = await response.blob();
             const size = blob.size;
 
-            // Validate size (2MB = 2 * 1024 * 1024 bytes)
             if (size > 2 * 1024 * 1024) {
                 throw new Error("Image size exceeds 2MB limit.");
             }
 
             const storageRef = ref(storage, `users/${userId}/profile.jpg`);
 
-            // Upload
             await uploadBytes(storageRef, blob);
-
-            // Get URL
             const downloadURL = await getDownloadURL(storageRef);
 
             loggerService.logResponse('storageService.uploadProfileImage', { success: true, size });
@@ -55,20 +51,14 @@ export const storageService = {
             const blob = await response.blob();
             const size = blob.size;
 
-            // Validate size (e.g. 5MB limit for docs)
             if (size > 5 * 1024 * 1024) {
                 throw new Error("File size exceeds 5MB limit.");
             }
 
-            // Path: users/{userId}/docs/{fileName}
-            // Use timestamp to avoid name collisions or overwrites if desired
             const uniqueName = `${Date.now()}_${fileName}`;
             const storageRef = ref(storage, `users/${userId}/docs/${uniqueName}`);
 
-            // Upload
             await uploadBytes(storageRef, blob);
-
-            // Get URL
             const downloadURL = await getDownloadURL(storageRef);
 
             loggerService.logResponse('storageService.uploadFile', { success: true, size });
@@ -90,10 +80,8 @@ export const storageService = {
             await deleteObject(storageRef);
             loggerService.logResponse('storageService.deleteProfileImage', { success: true });
         } catch (error: any) {
-            // Ignore if object not found
             if (error.code !== 'storage/object-not-found') {
                 loggerService.logApiError('storageService.deleteProfileImage', error);
-                // We don't throw here to avoid blocking profile updates if delete fails
             }
         }
     },
@@ -108,27 +96,20 @@ export const storageService = {
 
             // Delete profile image
             const profileRef = ref(storage, `users/${userId}/profile.jpg`);
-            await deleteObject(profileRef).catch(() => { }); // Maintain flow if not found
-
-            // Delete docs in 'docs' folder if any structure exists there, 
-            // usually users/{userId}/docs/filename
-            // or just list root of users/{userId} and delete everything?
-            // Safer to list `users/{userId}` and delete items.
+            await deleteObject(profileRef).catch(() => { });
 
             const userRootRef = ref(storage, `users/${userId}`);
-
-            // Note: Firebase Storage listAll is shallow. If we have nested folders, we need recursion.
-            // Assuming simple structure: users/{userId}/profile.jpg and maybe users/{userId}/docs/...
-
             const listResult = await listAll(userRootRef);
 
             const deletePromises = listResult.items.map((itemRef) => deleteObject(itemRef));
             await Promise.all(deletePromises);
 
-            // If there are subfolders (prefixes), we should handle them too if we want "complete" wipe.
-            // Let's check 'docs' prefix specifically if that's where we store things.
-            // Assuming we don't know exact structure, we might need a recursive delete helper.
-            // For now, let's just try to be robust for common known paths.
+            if (listResult.prefixes.length > 0) {
+                for (const folderRef of listResult.prefixes) {
+                    const subList = await listAll(folderRef);
+                    await Promise.all(subList.items.map(item => deleteObject(item)));
+                }
+            }
 
             if (listResult.prefixes.length > 0) {
                 for (const folderRef of listResult.prefixes) {
@@ -140,7 +121,6 @@ export const storageService = {
             loggerService.logResponse('storageService.deleteAllUserFiles', { success: true });
         } catch (error) {
             loggerService.logApiError('storageService.deleteAllUserFiles', error);
-            // Don't throw, we want to continue deletion of other things
         }
     }
 };

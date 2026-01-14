@@ -70,7 +70,6 @@ export default function OtpVerificationScreen({ mobileNumber, verificationId, fu
 
             onNavigate('dashboard');
         } catch (error) {
-            console.error(error);
             alert('Invalid OTP. Please try again.');
         } finally {
             setIsLoading(false);

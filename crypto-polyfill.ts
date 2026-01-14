@@ -19,5 +19,3 @@ if (typeof global.crypto.getRandomValues === 'undefined') {
         return array;
     }) as any;
 }
-
-console.log('✅ Crypto polyfill loaded successfully');

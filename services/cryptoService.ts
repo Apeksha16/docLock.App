@@ -10,11 +10,8 @@ export const cryptoService = {
      */
     hashMpin: (mpin: string, userId: string): string => {
         try {
-            // Combine MPIN with UserID (Salt) to prevent rainbow table attacks
             const salt = userId;
             const data = mpin + salt;
-
-            // Generate SHA-256 Hash
             const hash = CryptoJS.SHA256(data).toString(CryptoJS.enc.Hex);
 
             return hash;

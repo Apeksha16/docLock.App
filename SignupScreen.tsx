@@ -12,11 +12,10 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
 import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { authService } from './services/authService';
 import { firestoreService } from './services/firestoreService';
-import { app } from './firebaseConfig';
 
 // Props for navigation callback
 interface SignupScreenProps {
@@ -47,8 +46,6 @@ export default function SignupScreen({ onNavigate, mobileNumber: prefilledMobile
     const isValidMobile = /^[6-9][0-9]{9}$/.test(mobileNumber);
     const isValidName = fullName.trim().length > 0 && /^[a-zA-Z\s]*$/.test(fullName);
     const isValid = isValidMobile && isValidName;
-
-    const recaptchaVerifier = useRef(null);
 
     const handleSendOtp = async () => {
         if (!isValid) return;
@@ -94,13 +91,11 @@ export default function SignupScreen({ onNavigate, mobileNumber: prefilledMobile
             // 2. User New -> Proceed to Signup OTP
             const phoneNumber = `+91${mobileNumber}`;
 
-            // Re-use the same "Smart Verifier" logic from Login
-            const verifier = (Device.isDevice && recaptchaVerifier.current) ? recaptchaVerifier.current : undefined;
-            const verificationId = await authService.sendOtp(phoneNumber, verifier);
+            // React Native Firebase Auth uses native phone auth - no reCAPTCHA verifier needed
+            const verificationId = await authService.sendOtp(phoneNumber);
 
             onNavigate('otp', mobileNumber, verificationId, fullName);
         } catch (error: any) {
-            console.error(error);
             Alert.alert("Signup Failed", error.message);
         } finally {
             setIsLoading(false);
@@ -125,12 +120,6 @@ export default function SignupScreen({ onNavigate, mobileNumber: prefilledMobile
             styles.container,
             { justifyContent: isTablet ? 'center' : 'flex-end' }
         ]}>
-            <FirebaseRecaptchaVerifierModal
-                ref={recaptchaVerifier}
-                firebaseConfig={app.options}
-                attemptInvisibleVerification={false} // Visible to help debug if needed
-            />
-
             {/* Background Gradient */}
             <LinearGradient
                 colors={['#1e1b4b', '#312e81', '#1e1b4b']}
@@ -234,6 +223,11 @@ export default function SignupScreen({ onNavigate, mobileNumber: prefilledMobile
                     <MaterialCommunityIcons name="shield-check-outline" size={12} color="#94A3B8" />
                     <Text style={styles.securityText}>Your data is safe with us</Text>
                 </View>
+
+                {/* Version Number */}
+                <Text style={styles.versionText}>
+                    v{Constants.expoConfig?.version || '1.0.0'}
+                </Text>
 
             </View>
         </View>
@@ -395,5 +389,12 @@ const styles = StyleSheet.create({
         opacity: 0.7,
         shadowOpacity: 0,
         elevation: 0,
+    },
+    versionText: {
+        fontSize: 10,
+        color: '#CBD5E1',
+        marginTop: 16,
+        fontWeight: '400',
+        letterSpacing: 0.3,
     },
 });
