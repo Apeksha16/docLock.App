@@ -10,6 +10,25 @@ import BottomNavBar from './components/BottomNavBar';
 
 const { width } = Dimensions.get('window');
 
+// -------------------------------------------------------------
+// THEMES (Matched with MyCardsScreen)
+// -------------------------------------------------------------
+const DEBIT_THEMES = [
+    ['#EA580C', '#FB923C'] as const,
+    ['#0891B2', '#22D3EE'] as const,
+    ['#4D7C0F', '#84CC16'] as const,
+    ['#BE185D', '#F472B6'] as const,
+    ['#7C3AED', '#A78BFA'] as const,
+];
+
+const CREDIT_THEMES = [
+    ['#064E3B', '#059669'] as const,
+    ['#4C1D95', '#7C3AED'] as const,
+    ['#0F172A', '#334155'] as const,
+    ['#881337', '#BE123C'] as const,
+    ['#78350F', '#B45309'] as const,
+];
+
 interface AddCardScreenProps {
     onNavigate: (screen: 'dashboard' | 'friends' | 'profile' | 'my-cards') => void;
     userId: string;
@@ -33,6 +52,11 @@ export default function AddCardScreen({ onNavigate, userId, cardToEdit }: AddCar
     // Real-time Validation State: 'neutral' | 'valid' | 'invalid'
     const [numValidation, setNumValidation] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
     const [dateValidation, setDateValidation] = useState<'neutral' | 'valid' | 'invalid'>('neutral');
+
+    // Preview: Pick a random theme index for visualization (so user sees "A" color)
+    // We can randomize this on mount, or just use 0.
+    // Let's use a ref to keep it stable during typing, but depend on cardType
+    const previewThemeIndex = useRef(Math.floor(Math.random() * 5)).current;
 
     // Animation for background decoration
     const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -308,13 +332,18 @@ export default function AddCardScreen({ onNavigate, userId, cardToEdit }: AddCar
         setLoading(true);
         // Passed validation
         try {
+            // Generate a random theme index (0-4) for new cards
+            // 0: Gold, 1: Rose, 2: Midnight, 3: Teal, 4: Purple
+            const themeIndex = cardToEdit ? (cardToEdit.themeIndex ?? Math.floor(Math.random() * 5)) : Math.floor(Math.random() * 5);
+
             const cardData = {
                 cardType,
                 cardName,
                 cardNumber: cardNumber.replace(/\s+/g, ''), // Plaintext passed to service, service encrypts it
                 holderName,
                 expiry,
-                cvv
+                cvv,
+                themeIndex // Save the selected theme
             };
 
             console.log("handleAddCard: Sending card data to service:", {
@@ -425,7 +454,7 @@ export default function AddCardScreen({ onNavigate, userId, cardToEdit }: AddCar
                                     </View>
                                 ) : (
                                     <LinearGradient
-                                        colors={['#EC4899', '#F472B6']}
+                                        colors={cardType === 'credit' ? CREDIT_THEMES[previewThemeIndex] : DEBIT_THEMES[previewThemeIndex]}
                                         style={styles.cardGradient}
                                         start={{ x: 0, y: 0 }}
                                         end={{ x: 1, y: 1 }}

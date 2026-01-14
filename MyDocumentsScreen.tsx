@@ -530,7 +530,7 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
                         <View style={styles.dragHandle} />
 
                         <View style={styles.folderIconContainer}>
-                            <Feather name="folder" size={24} color="#3B82F6" />
+                            <Feather name="folder" size={24} color="#1581BF" />
                         </View>
 
                         <Text style={styles.modalTitle}>{renamingId ? 'Rename Folder' : 'New Folder'}</Text>
@@ -538,7 +538,7 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
                         <TextInput
                             style={[
                                 styles.modalInput,
-                                newFolderName.length > 0 && { borderColor: '#3B82F6', backgroundColor: '#FFFFFF' }
+                                newFolderName.length > 0 && { borderColor: '#1581BF', backgroundColor: '#FFFFFF' }
                             ]}
                             placeholder="Folder name"
                             placeholderTextColor="#94A3B8"
@@ -559,7 +559,7 @@ export default function MyDocumentsScreen({ onNavigate, userId }: MyDocumentsScr
                             <TouchableOpacity
                                 style={[
                                     styles.modalCreateButton,
-                                    { backgroundColor: newFolderName.trim() ? '#2563EB' : '#93C5FD' } // Blue 600 : Blue 300
+                                    { backgroundColor: newFolderName.trim() ? '#1581BF' : '#93C5FD' }
                                 ]}
                                 onPress={handleCreateFolder}
                                 disabled={!newFolderName.trim() || isCreatingFolder}

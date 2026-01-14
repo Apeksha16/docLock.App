@@ -48,7 +48,7 @@ export default function DashboardScreen({ onNavigate, userProfile, notifications
             percent: Number(storagePercent),
             value: `${usedStorageMB} MB / ${totalStorageMB} MB`,
             used: `${storagePercent}%`,
-            color: '#4F46E5', // Indigo
+            color: '#1581BF', // Updated to Blue Theme
             subLabel: 'STORAGE DETAILS',
             chartLabel: 'STORAGE'
         },
@@ -191,12 +191,12 @@ export default function DashboardScreen({ onNavigate, userProfile, notifications
                         <TouchableOpacity
                             style={[
                                 styles.tab,
-                                { backgroundColor: '#EEF2FF', borderColor: activeTab === 'storage' ? '#4F46E5' : 'transparent' }
+                                { backgroundColor: '#EEF2FF', borderColor: activeTab === 'storage' ? '#1581BF' : 'transparent' }
                             ]}
                             onPress={() => setActiveTab('storage')}
                         >
-                            <View style={[styles.dot, { backgroundColor: '#4F46E5' }]} />
-                            <Text style={[styles.tabText, { color: '#4F46E5' }]}>Storage</Text>
+                            <View style={[styles.dot, { backgroundColor: '#1581BF' }]} />
+                            <Text style={[styles.tabText, { color: '#1581BF' }]}>Storage</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
@@ -244,8 +244,8 @@ export default function DashboardScreen({ onNavigate, userProfile, notifications
                 {/* Grid Menu */}
                 <View style={styles.gridContainer}>
                     <TouchableOpacity style={styles.gridItem} onPress={() => onNavigate('my-documents')}>
-                        <View style={[styles.iconBox, { backgroundColor: '#EEF2FF', borderWidth: 1, borderColor: '#4F46E5' }]}>
-                            <MaterialCommunityIcons name="file-document-outline" size={24} color="#4F46E5" />
+                        <View style={[styles.iconBox, { backgroundColor: '#EEF2FF', borderWidth: 1, borderColor: '#1581BF' }]}>
+                            <MaterialCommunityIcons name="file-document-outline" size={24} color="#1581BF" />
                         </View>
                         <Text style={styles.gridLabel}>Documents</Text>
 
@@ -293,6 +293,8 @@ const styles = StyleSheet.create({
         opacity: 0.5,
     },
     scrollContent: {
+        flexGrow: 1,
+        justifyContent: 'flex-end',
         paddingTop: 50, // Reduced from 60
         paddingHorizontal: 24,
         paddingBottom: 120, // Increased to ensure last item clears the floating bar if scrolling happens
@@ -372,12 +374,13 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     percentText: {
-        fontSize: 32, // Reduced from 36
+        fontSize: 24, // Reduced from 32
         fontWeight: '900',
         marginBottom: -4,
+        color: '#1581BF', // Updated to Blue Theme
     },
     storageLabel: {
-        fontSize: 10, // Reduced from 12
+        fontSize: 9, // Reduced from 10
         fontWeight: '800',
         letterSpacing: 1.5,
         textTransform: 'uppercase',
@@ -439,12 +442,12 @@ const styles = StyleSheet.create({
     usedValue: {
         fontSize: 18,
         fontWeight: '800',
-        color: '#4F46E5',
+        color: '#1581BF',
     },
     percentValue: {
         fontSize: 18,
         fontWeight: '800',
-        color: '#4F46E5',
+        color: '#1581BF',
     },
     gridContainer: {
         flexDirection: 'row',
