@@ -432,6 +432,7 @@ const styles = StyleSheet.create({
         borderRadius: 24,
         padding: 24,
         paddingTop: 0, // Space for avatar handled by spacer
+        paddingBottom: 48, // Increased for better balance
         position: 'relative',
     },
     cardHeaderSpacer: {
@@ -439,13 +440,14 @@ const styles = StyleSheet.create({
     },
     userInfo: {
         alignItems: 'center',
-        marginBottom: 24,
+        marginBottom: 8, // Reduced since card padding handles bottom space
+        marginTop: 24, // Increased spacing from avatar
     },
     nameRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
-        marginBottom: 4,
+        marginBottom: 12, // Increased from 4
     },
     userName: {
         fontSize: 22,

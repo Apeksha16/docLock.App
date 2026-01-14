@@ -12,6 +12,24 @@ import BottomNavBar from './components/BottomNavBar';
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.85;
 
+// Define Debit Card Themes (Vibrant & Fresh)
+const DEBIT_THEMES = [
+    ['#EA580C', '#FB923C'] as const, // Sunset Orange
+    ['#0891B2', '#22D3EE'] as const, // Electric Cyan
+    ['#4D7C0F', '#84CC16'] as const, // Neon Lime
+    ['#BE185D', '#F472B6'] as const, // Hot Pink
+    ['#7C3AED', '#A78BFA'] as const, // Bright Violet
+];
+
+// Define Credit Card Themes (Deep & Premium)
+const CREDIT_THEMES = [
+    ['#064E3B', '#059669'] as const, // Emerald Prestige (Deep Green)
+    ['#4C1D95', '#7C3AED'] as const, // Royal Velvet (Deep Purple)
+    ['#0F172A', '#334155'] as const, // Midnight Elite (Dark Slate)
+    ['#881337', '#BE123C'] as const, // Crimson Luxe (Dark Red)
+    ['#78350F', '#B45309'] as const, // Titanium Gold (Dark Gold)
+];
+
 interface MyCardsScreenProps {
     onNavigate: (screen: 'dashboard' | 'friends' | 'profile' | 'add-card', params?: any) => void;
     userId: string;
@@ -77,10 +95,13 @@ export default function MyCardsScreen({ onNavigate, userId, cards }: MyCardsScre
     };
 
     const renderCardItem = (card: any) => {
-        // Determine gradient colors based on card type
-        const gradientColors = card.cardType === 'credit'
-            ? ['#A77979', '#B88A8A'] as const // Credit card - rose/mauve gradient
-            : ['#E5C95F', '#EDD786'] as const; // Debit card - golden/yellow gradient
+        const themeIndex = card.themeIndex !== undefined && card.themeIndex !== null
+            ? card.themeIndex
+            : (card.id ? card.id.charCodeAt(card.id.length - 1) % 5 : 0);
+
+        const isCredit = card.cardType === 'credit';
+        const themes = isCredit ? CREDIT_THEMES : DEBIT_THEMES;
+        const gradientColors = themes[themeIndex] || themes[0];
 
         return (
             <LinearGradient
