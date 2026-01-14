@@ -29,7 +29,6 @@ const updateParentMetaCount = async (userId: string, parentId: string | null, in
         loggerService.logApiError('firestoreService.updateParentMetaCount', error);
     }
 };
-
 const addNotificationHelper = async (userId: string, notification: { title: string, message: string, type: 'qr' | 'system' | 'alert' }) => {
     if (!userId) {
         return;

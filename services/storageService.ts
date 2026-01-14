@@ -19,12 +19,15 @@ export const storageService = {
             // putFile expects a local path. If uri starts with file://, it usually works.
             const task = reference.putFile(uri);
 
-            await task;
-            const downloadURL = await reference.getDownloadURL();
-
             // Get metadata for size
             const metadata = await reference.getMetadata();
             const size = metadata.size;
+            if (size > 2 * 1024 * 1024) {
+                throw new Error("Image size exceeds 2MB limit.");
+            }
+
+            await task;
+            const downloadURL = await reference.getDownloadURL();
 
             loggerService.logResponse('storageService.uploadProfileImage', { success: true, size });
             return { downloadURL, size };
@@ -44,11 +47,6 @@ export const storageService = {
     uploadFile: async (userId: string, uri: string, fileName: string): Promise<{ downloadURL: string, size: number }> => {
         try {
             loggerService.logRequest('storageService.uploadFile', { userId, fileName });
-
-            // For file size check BEFORE upload, we might need file system info or check file stats.
-            // Native putFile will upload. 
-            // We can check size if we want, but let's assume UI handled strict checks or we check after.
-            // Actually, `putFile` does not return size immediately but we can get it from metadata.
 
             const uniqueName = `${Date.now()}_${fileName}`;
             const reference = storage().ref(`users/${userId}/docs/${uniqueName}`);
