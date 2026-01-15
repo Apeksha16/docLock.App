@@ -15,14 +15,19 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.techvriksha.doclock",
-      "googleServicesFile": "./GoogleService-Info.plist"
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow DocLock to access your camera to scan cards.",
+        "NSPhotoLibraryUsageDescription": "Allow DocLock to access your photo library to save and share documents.",
+        "NSPhotoLibraryAddUsageDescription": "Allow DocLock to save documents to your photo library."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
       "package": "com.techvriksha.doclock",
       "googleServicesFile": "./google-services.json"
     },
@@ -45,7 +50,8 @@
             "useFrameworks": "static"
           }
         }
-      ]
+      ],
+      "./plugins/withWidget.js"
     ]
   }
 }

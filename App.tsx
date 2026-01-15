@@ -30,6 +30,7 @@ LogBox.ignoreLogs([
 import AboutScreen from './AboutScreen';
 import SecurityPinModal from './components/SecurityPinModal';
 import BottomNavBar from './components/BottomNavBar';
+import SwipeBackWrapper from './components/SwipeBackWrapper';
 
 import SecureQRScreen from './SecureQRScreen';
 import MyCardsScreen from './MyCardsScreen';
@@ -153,50 +154,88 @@ export default function App() {
   }
 
   const renderScreen = () => {
-    switch (currentScreen) {
-      case 'login':
-        return <LoginScreen onNavigate={(screen, mobile, verificationId) => handleNavigate(screen, { mobile, verificationId })} />;
-      case 'signup':
-        // Pass mobile number if available (from Login redirect)
-        return <SignupScreen mobileNumber={mobileNumber} onNavigate={(screen, mobile, verificationId, fullName) => handleNavigate(screen, { mobile, verificationId, fullName })} />;
-      case 'otp':
-        return <OtpVerificationScreen mobileNumber={mobileNumber} verificationId={verificationId} fullName={fullName} onNavigate={(screen) => handleNavigate(screen)} />;
-      case 'dashboard':
-        return <DashboardScreen
-          userProfile={userProfile}
-          notifications={notifications}
-          cards={cards}
-          appConfig={appConfig}
-          onNavigate={(screen) => handleNavigate(screen)}
-        />;
-      case 'notifications':
-        return <NotificationScreen
-          onNavigate={() => handleNavigate('dashboard')}
-          notifications={notifications}
-          userId={user?.uid}
-        />;
-      case 'friends':
-        return <FriendsScreen onNavigate={(screen) => handleNavigate(screen)} userId={user?.uid} userProfile={userProfile} />;
-      case 'profile':
-        return <ProfileScreen
-          userProfile={userProfile}
-          appConfig={appConfig}
-          userId={user?.uid}
-          onNavigate={(screen) => handleNavigate(screen)}
-        />;
-      case 'secure-qr':
-        return <SecureQRScreen onNavigate={(screen) => handleNavigate(screen)} userId={user?.uid} />;
-      case 'my-cards':
-        return <MyCardsScreen onNavigate={(screen, params) => handleNavigate(screen, params)} userId={user?.uid || ''} cards={cards} />;
-      case 'add-card':
-        return <AddCardScreen onNavigate={(screen) => handleNavigate(screen)} userId={user?.uid || ''} cardToEdit={cardToEdit} />;
-      case 'my-documents':
-        return <MyDocumentsScreen onNavigate={(screen) => handleNavigate(screen)} userId={user?.uid} />;
-      case 'about':
-        return <AboutScreen onNavigate={(screen) => handleNavigate(screen)} />;
-      default:
-        return null; // Should not happen after splash
+    // Screens that should support swipe-back gesture
+    const screensWithSwipeBack = ['notifications', 'secure-qr', 'my-cards', 'add-card', 'my-documents', 'about'];
+    const shouldEnableSwipeBack = screensWithSwipeBack.includes(currentScreen);
+
+    // Determine the back navigation target for each screen
+    const getBackScreen = (): 'dashboard' | 'my-cards' | 'profile' => {
+      switch (currentScreen) {
+        case 'notifications':
+        case 'secure-qr':
+        case 'my-cards':
+        case 'my-documents':
+          return 'dashboard';
+        case 'add-card':
+          return 'my-cards';
+        case 'about':
+          return 'profile';
+        default:
+          return 'dashboard';
+      }
+    };
+
+    const handleSwipeBack = () => {
+      handleNavigate(getBackScreen());
+    };
+
+    const screenContent = (() => {
+      switch (currentScreen) {
+        case 'login':
+          return <LoginScreen onNavigate={(screen, mobile, verificationId) => handleNavigate(screen, { mobile, verificationId })} />;
+        case 'signup':
+          // Pass mobile number if available (from Login redirect)
+          return <SignupScreen mobileNumber={mobileNumber} onNavigate={(screen, mobile, verificationId, fullName) => handleNavigate(screen, { mobile, verificationId, fullName })} />;
+        case 'otp':
+          return <OtpVerificationScreen mobileNumber={mobileNumber} verificationId={verificationId} fullName={fullName} onNavigate={(screen) => handleNavigate(screen)} />;
+        case 'dashboard':
+          return <DashboardScreen
+            userProfile={userProfile}
+            notifications={notifications}
+            cards={cards}
+            appConfig={appConfig}
+            onNavigate={(screen) => handleNavigate(screen)}
+          />;
+        case 'notifications':
+          return <NotificationScreen
+            onNavigate={() => handleNavigate('dashboard')}
+            notifications={notifications}
+            userId={user?.uid}
+          />;
+        case 'friends':
+          return <FriendsScreen onNavigate={(screen) => handleNavigate(screen)} userId={user?.uid} userProfile={userProfile} />;
+        case 'profile':
+          return <ProfileScreen
+            userProfile={userProfile}
+            appConfig={appConfig}
+            userId={user?.uid}
+            onNavigate={(screen) => handleNavigate(screen)}
+          />;
+        case 'secure-qr':
+          return <SecureQRScreen onNavigate={(screen) => handleNavigate(screen)} userId={user?.uid} />;
+        case 'my-cards':
+          return <MyCardsScreen onNavigate={(screen, params) => handleNavigate(screen, params)} userId={user?.uid || ''} cards={cards} />;
+        case 'add-card':
+          return <AddCardScreen onNavigate={(screen) => handleNavigate(screen)} userId={user?.uid || ''} cardToEdit={cardToEdit} />;
+        case 'my-documents':
+          return <MyDocumentsScreen onNavigate={(screen) => handleNavigate(screen)} userId={user?.uid} />;
+        case 'about':
+          return <AboutScreen onNavigate={(screen) => handleNavigate(screen)} />;
+        default:
+          return null; // Should not happen after splash
+      }
+    })();
+
+    // Wrap screens that support swipe-back with the gesture wrapper
+    if (shouldEnableSwipeBack) {
+      return (
+        <SwipeBackWrapper onSwipeBack={handleSwipeBack} enabled={true}>
+          {screenContent}
+        </SwipeBackWrapper>
+      );
     }
+
+    return screenContent;
   };
 
   const showBottomNav = ['dashboard', 'friends', 'profile'].includes(currentScreen);

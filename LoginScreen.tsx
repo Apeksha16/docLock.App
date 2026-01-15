@@ -7,7 +7,11 @@ import {
     TouchableOpacity,
     useWindowDimensions,
     Image,
-    Pressable
+    Pressable,
+    KeyboardAvoidingView,
+    TouchableWithoutFeedback,
+    Keyboard,
+    Platform
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -91,6 +95,7 @@ export default function LoginScreen({ onNavigate }: LoginScreenProps) {
     const [isLoading, setIsLoading] = useState(false);
 
     const handleSendOtp = async () => {
+        console.log("DEBUG: Firebase Config Options:", JSON.stringify(app.options, null, 2));
         if (!isValidMobile) return;
 
         setIsLoading(true);
@@ -148,104 +153,112 @@ export default function LoginScreen({ onNavigate }: LoginScreenProps) {
     };
 
     return (
-        <View style={[
-            styles.container,
-            { justifyContent: isTablet ? 'center' : 'flex-end' }
-        ]}>
-            <FirebaseRecaptchaVerifierModal
-                ref={recaptchaVerifier}
-                firebaseConfig={app.options}
-                attemptInvisibleVerification={false}
-            />
-            {/* Background Gradient similar to design (Dark Blue/indigo) */}
-            <LinearGradient
-                colors={['#1e1b4b', '#312e81', '#1e1b4b']} // Deep indigo/slate
-                style={styles.background}
-            />
-
-            {/* Floating Circles for ambiance (optional, can be removed if strictly flat) */}
-            <View style={[styles.circle, { top: -100, right: -50, width: 300, height: 300 }]} />
-            <View style={[styles.circle, { bottom: -50, left: -100, width: 200, height: 200 }]} />
-
-            {/* Main Card */}
-            <View style={[
-                styles.card,
-                {
-                    width: cardWidth,
-                    paddingVertical: isTablet ? 60 : 40,
-                    paddingHorizontal: isTablet ? 50 : 30,
-                    // Remove bottom border radius on mobile for "Bottom Sheet" look
-                    borderBottomLeftRadius: isTablet ? 30 : 0,
-                    borderBottomRightRadius: isTablet ? 30 : 0,
-                }
-            ]}>
-
-                {/* Logo */}
-                <View style={styles.logoContainer}>
-                    <Image
-                        source={require('./assets/logo.png')}
-                        style={styles.logoImage}
-                        resizeMode="contain"
+        <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                <View style={[
+                    styles.container,
+                    { justifyContent: isTablet ? 'center' : 'flex-end' }
+                ]}>
+                    <FirebaseRecaptchaVerifierModal
+                        ref={recaptchaVerifier}
+                        firebaseConfig={app.options}
+                        attemptInvisibleVerification={false}
                     />
-                </View>
-
-                {/* Headlines */}
-                <Text style={styles.headLine}>
-                    {`${words[index].substring(0, subIndex)}${blink ? '|' : ' '}`}
-                </Text>
-                <Text style={styles.subHeadLine}>Sign in to your secure vault</Text>
-
-                {/* Form Group */}
-                <View style={styles.formGroup}>
-                    <Text style={styles.label}>Mobile Number</Text>
-                    <TextInput
-                        style={[
-                            styles.input,
-                            isFocused && styles.inputFocused
-                        ]}
-                        placeholder="Enter 10-digit number"
-                        placeholderTextColor="#94A3B8"
-                        keyboardType="number-pad"
-                        value={mobileNumber}
-                        onChangeText={handleTextChange}
-                        maxLength={10}
-                        onFocus={() => setIsFocused(true)}
-                        onBlur={() => setIsFocused(false)}
-                        editable={!isLoading}
+                    {/* Background Gradient similar to design (Dark Blue/indigo) */}
+                    <LinearGradient
+                        colors={['#1e1b4b', '#312e81', '#1e1b4b']} // Deep indigo/slate
+                        style={styles.background}
                     />
+
+                    {/* Floating Circles for ambiance (optional, can be removed if strictly flat) */}
+                    <View style={[styles.circle, { top: -100, right: -50, width: 300, height: 300 }]} />
+                    <View style={[styles.circle, { bottom: -50, left: -100, width: 200, height: 200 }]} />
+
+                    {/* Main Card */}
+                    <View style={[
+                        styles.card,
+                        {
+                            width: cardWidth,
+                            paddingVertical: isTablet ? 60 : 40,
+                            paddingHorizontal: isTablet ? 50 : 30,
+                            // Remove bottom border radius on mobile for "Bottom Sheet" look
+                            borderBottomLeftRadius: isTablet ? 30 : 0,
+                            borderBottomRightRadius: isTablet ? 30 : 0,
+                        }
+                    ]}>
+
+                        {/* Logo */}
+                        <View style={styles.logoContainer}>
+                            <Image
+                                source={require('./assets/logo.png')}
+                                style={styles.logoImage}
+                                resizeMode="contain"
+                            />
+                        </View>
+
+                        {/* Headlines */}
+                        <Text style={styles.headLine}>
+                            {`${words[index].substring(0, subIndex)}${blink ? '|' : ' '}`}
+                        </Text>
+                        <Text style={styles.subHeadLine}>Sign in to your secure vault</Text>
+
+                        {/* Form Group */}
+                        <View style={styles.formGroup}>
+                            <Text style={styles.label}>Mobile Number</Text>
+                            <TextInput
+                                style={[
+                                    styles.input,
+                                    isFocused && styles.inputFocused
+                                ]}
+                                placeholder="Enter 10-digit number"
+                                placeholderTextColor="#94A3B8"
+                                keyboardType="number-pad"
+                                value={mobileNumber}
+                                onChangeText={handleTextChange}
+                                maxLength={10}
+                                returnKeyType="done"
+                                onFocus={() => setIsFocused(true)}
+                                onBlur={() => setIsFocused(false)}
+                                editable={!isLoading}
+                            />
+                        </View>
+
+                        {/* CTA Button */}
+                        <Pressable
+                            disabled={!isValidMobile || isLoading}
+                            onPressIn={() => setIsHovered(true)}
+                            onPressOut={() => setIsHovered(false)}
+                            onPress={handleSendOtp}
+                            style={({ pressed }) => [
+                                styles.button,
+                                (!isValidMobile || isLoading) && styles.buttonDisabled,
+                                (pressed || isHovered) && isValidMobile && !isLoading && styles.buttonPressed
+                            ]}
+                        >
+                            <Text style={styles.buttonText}>{isLoading ? 'Sending...' : 'Get OTP'}</Text>
+                        </Pressable>
+
+                        {/* Footer Navigation */}
+                        <View style={styles.footerNav}>
+                            <Text style={styles.footerText}>New to DocLock? </Text>
+                            <TouchableOpacity onPress={() => onNavigate('signup')}>
+                                <Text style={styles.linkText}>Create Account</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Security Badge */}
+                        <View style={styles.securityBadge}>
+                            <MaterialCommunityIcons name="lock" size={12} color="#94A3B8" />
+                            <Text style={styles.securityText}>Secured with 256-bit encryption</Text>
+                        </View>
+
+                    </View>
                 </View>
-
-                {/* CTA Button */}
-                <Pressable
-                    disabled={!isValidMobile || isLoading}
-                    onPressIn={() => setIsHovered(true)}
-                    onPressOut={() => setIsHovered(false)}
-                    onPress={handleSendOtp}
-                    style={({ pressed }) => [
-                        styles.button,
-                        (!isValidMobile || isLoading) && styles.buttonDisabled,
-                        (pressed || isHovered) && isValidMobile && !isLoading && styles.buttonPressed
-                    ]}
-                >
-                    <Text style={styles.buttonText}>{isLoading ? 'Sending...' : 'Get OTP'}</Text>
-                </Pressable>
-
-                {/* Footer Navigation */}
-                <View style={styles.footerNav}>
-                    <Text style={styles.footerText}>New to DocLock? </Text>
-                    <TouchableOpacity onPress={() => onNavigate('signup')}>
-                        <Text style={styles.linkText}>Create Account</Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Security Badge */}
-                <View style={styles.securityBadge}>
-                    <MaterialCommunityIcons name="lock" size={12} color="#94A3B8" />
-                    <Text style={styles.securityText}>Secured with 256-bit encryption</Text>
-                </View>
-
-            </View>
-        </View>
+            </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
     );
 }
 
