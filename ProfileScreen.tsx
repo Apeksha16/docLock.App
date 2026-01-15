@@ -147,7 +147,7 @@ export default function ProfileScreen({ onNavigate, userProfile, appConfig, user
             let currentUser: any = null;
             try {
                 const auth = (await import('@react-native-firebase/auth')).default();
-                currentUser = auth().currentUser;
+                currentUser = auth.currentUser;
             } catch (e) {
                 // Auth instance not available
             }

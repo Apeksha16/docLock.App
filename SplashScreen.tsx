@@ -22,24 +22,24 @@ export default function SplashScreen() {
                 useNativeDriver: true,
             }).start();
 
-        // Pulse animation for dots
-        const animateDot = (dot: Animated.Value, delay: number) => {
-            Animated.loop(
-                Animated.sequence([
-                    Animated.timing(dot, {
-                        toValue: 1,
-                        duration: 500,
-                        useNativeDriver: true,
-                        delay: delay,
-                    }),
-                    Animated.timing(dot, {
-                        toValue: 0.3, // Don't go to 0 opacity
-                        duration: 500,
-                        useNativeDriver: true,
-                    }),
-                ])
-            ).start();
-        };
+            // Pulse animation for dots
+            const animateDot = (dot: Animated.Value, delay: number) => {
+                Animated.loop(
+                    Animated.sequence([
+                        Animated.timing(dot, {
+                            toValue: 1,
+                            duration: 500,
+                            useNativeDriver: true,
+                            delay: delay,
+                        }),
+                        Animated.timing(dot, {
+                            toValue: 0.3, // Don't go to 0 opacity
+                            duration: 500,
+                            useNativeDriver: true,
+                        }),
+                    ])
+                ).start();
+            };
 
             animateDot(dot1, 0);
             animateDot(dot2, 200);
@@ -55,76 +55,76 @@ export default function SplashScreen() {
 
     try {
         return (
-        <View style={styles.container}>
-            <LinearGradient
-                // Refined gradient from Top-Left (Blueish) to Bottom-Right (Pinkish/NavajoWhite)
-                colors={['#E6F0FF', '#F3E8FF', '#FAE8FF', '#FFF0F5', '#FFF7ED']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.gradient}
-            >
-                <View style={[
-                    styles.card,
-                    {
-                        width: cardWidth,
-                        minHeight: cardWidth * 1.1,
-                        paddingHorizontal: isTablet ? 60 : 30,
-                        paddingVertical: 50,
-                    }
-                ]}>
+            <View style={styles.container}>
+                <LinearGradient
+                    // Refined gradient from Top-Left (Blueish) to Bottom-Right (Pinkish/NavajoWhite)
+                    colors={['#E6F0FF', '#F3E8FF', '#FAE8FF', '#FFF0F5', '#FFF7ED']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.gradient}
+                >
+                    <View style={[
+                        styles.card,
+                        {
+                            width: cardWidth,
+                            minHeight: cardWidth * 1.1,
+                            paddingHorizontal: isTablet ? 60 : 30,
+                            paddingVertical: 50,
+                        }
+                    ]}>
 
-                    <View style={styles.contentContainer}>
-                        {/* Logo Section */}
-                        <Animated.View style={[styles.logoContainer, { opacity: fadeAnim }]}>
-                            {/* Main Logo Image */}
-                            <View style={styles.logoWrapper}>
-                                <Image
-                                    source={require('./assets/logo.png')}
-                                    style={styles.logo}
-                                    resizeMode="contain"
-                                />
-                            </View>
-
-                            <Text style={styles.logoText}>DocLock</Text>
-                        </Animated.View>
-
-                        {/* Subtitle */}
-                        <Text style={styles.subtitle}>Your secure digital sanctuary</Text>
-
-                        {/* Loading Dots */}
-                        <View style={styles.dotsWrapper}>
-                            <View style={styles.dotsContainer}>
-                                {[dot1, dot2, dot3, dot4].map((dot, index) => (
-                                    <Animated.View
-                                        key={index}
-                                        style={[
-                                            styles.dot,
-                                            {
-                                                opacity: dot, // Directly map animated value to opacity
-                                                transform: [{
-                                                    scale: dot.interpolate({
-                                                        inputRange: [0.3, 1],
-                                                        outputRange: [0.8, 1.2],
-                                                    }),
-                                                }],
-                                            },
-                                        ]}
+                        <View style={styles.contentContainer}>
+                            {/* Logo Section */}
+                            <Animated.View style={[styles.logoContainer, { opacity: fadeAnim }]}>
+                                {/* Main Logo Image */}
+                                <View style={styles.logoWrapper}>
+                                    <Image
+                                        source={require('./assets/logo.png')}
+                                        style={styles.logo}
+                                        resizeMode="contain"
                                     />
-                                ))}
-                            </View>
-                        </View>
+                                </View>
 
-                        {/* Footer Text */}
-                        <Text style={styles.footerText}>DECRYPTING VAULT...</Text>
+                                <Text style={styles.logoText}>DocLock</Text>
+                            </Animated.View>
+
+                            {/* Subtitle */}
+                            <Text style={styles.subtitle}>Your secure digital sanctuary</Text>
+
+                            {/* Loading Dots */}
+                            <View style={styles.dotsWrapper}>
+                                <View style={styles.dotsContainer}>
+                                    {[dot1, dot2, dot3, dot4].map((dot, index) => (
+                                        <Animated.View
+                                            key={index}
+                                            style={[
+                                                styles.dot,
+                                                {
+                                                    opacity: dot, // Directly map animated value to opacity
+                                                    transform: [{
+                                                        scale: dot.interpolate({
+                                                            inputRange: [0.3, 1],
+                                                            outputRange: [0.8, 1.2],
+                                                        }),
+                                                    }],
+                                                },
+                                            ]}
+                                        />
+                                    ))}
+                                </View>
+                            </View>
+
+                            {/* Footer Text */}
+                            <Text style={styles.footerText}>DECRYPTING VAULT...</Text>
+                        </View>
                     </View>
-                </View>
-            </LinearGradient>
-        </View>
+                </LinearGradient>
+            </View>
         );
     } catch (error) {
         return (
             <View style={styles.container}>
-                <Text style={{ color: 'red' }}>Splash Error: {error?.message}</Text>
+                <Text style={{ color: 'red' }}>Splash Error: {(error as any)?.message}</Text>
             </View>
         );
     }

@@ -94,7 +94,7 @@ export default function SignupScreen({ onNavigate, mobileNumber: prefilledMobile
             // React Native Firebase Auth uses native phone auth - no reCAPTCHA verifier needed
             const verificationId = await authService.sendOtp(phoneNumber);
 
-            onNavigate('otp', mobileNumber, verificationId, fullName);
+            onNavigate('otp', mobileNumber, verificationId || undefined, fullName);
         } catch (error: any) {
             Alert.alert("Signup Failed", error.message);
         } finally {

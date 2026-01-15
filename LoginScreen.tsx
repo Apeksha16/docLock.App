@@ -134,7 +134,7 @@ export default function LoginScreen({ onNavigate }: LoginScreenProps) {
 
             const phoneNumber = `+91${mobileNumber}`;
             const verificationId = await authService.sendOtp(phoneNumber);
-            onNavigate('otp', mobileNumber, verificationId);
+            onNavigate('otp', mobileNumber, verificationId || undefined);
         } catch (error: any) {
             alert(`Error: ${error.message}\n${error.code || ''}`);
         } finally {

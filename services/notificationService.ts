@@ -1,14 +1,5 @@
-import {
-    collection,
-    query,
-    orderBy,
-    onSnapshot,
-    doc,
-    updateDoc,
-    deleteDoc,
-    addDoc
-} from 'firebase/firestore';
-import { db } from '../firebaseConfig';
+// @ts-ignore
+import firestore from '@react-native-firebase/firestore';
 import { loggerService } from './loggerService';
 
 export interface Notification {
@@ -20,36 +11,29 @@ export interface Notification {
     timestamp: number;
     createdAt: string;
     metadata?: any;
+    iconColor?: string;
+    color?: string;
 }
 
 export const notificationService = {
     /**
      * Subscribe to realtime notifications for a specific user
-     * @param userId The user's ID
-     * @param onUpdate Callback function with the list of notifications
-     * @returns Unsubscribe function
      */
     subscribeToNotifications: (userId: string, onUpdate: (notifications: Notification[]) => void) => {
         loggerService.logRequest('notificationService.subscribeToNotifications', { userId });
+        const notifsRef = firestore().collection('users').doc(userId).collection('notifications');
+        const q = notifsRef.orderBy('timestamp', 'desc');
 
-        const notificationsRef = collection(db, 'users', userId, 'notifications');
-        const q = query(notificationsRef, orderBy('timestamp', 'desc'));
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const notifications: Notification[] = [];
-            snapshot.forEach((doc) => {
-                notifications.push({
-                    id: doc.id,
-                    ...doc.data()
-                } as Notification);
-            });
-
+        const unsubscribe = q.onSnapshot((snapshot: any) => {
+            const notifications = snapshot.docs.map((doc: any) => ({
+                id: doc.id,
+                ...doc.data(),
+            })) as Notification[];
             loggerService.logResponse('notificationService.subscribeToNotifications', { count: notifications.length });
             onUpdate(notifications);
-        }, (error) => {
+        }, (error: any) => {
             loggerService.logApiError('notificationService.subscribeToNotifications', error);
         });
-
         return unsubscribe;
     },
 
@@ -59,9 +43,9 @@ export const notificationService = {
     toggleReadStatus: async (userId: string, notificationId: string, currentStatus: boolean) => {
         try {
             loggerService.logRequest('notificationService.toggleReadStatus', { userId, notificationId, newStatus: !currentStatus });
-            const notifRef = doc(db, 'users', userId, 'notifications', notificationId);
-            await updateDoc(notifRef, {
-                read: !currentStatus
+            const notifRef = firestore().collection('users').doc(userId).collection('notifications').doc(notificationId);
+            await notifRef.update({
+                read: !currentStatus,
             });
             loggerService.logResponse('notificationService.toggleReadStatus', { success: true });
         } catch (error) {
@@ -76,8 +60,8 @@ export const notificationService = {
     deleteNotification: async (userId: string, notificationId: string) => {
         try {
             loggerService.logRequest('notificationService.deleteNotification', { userId, notificationId });
-            const notifRef = doc(db, 'users', userId, 'notifications', notificationId);
-            await deleteDoc(notifRef);
+            const notifRef = firestore().collection('users').doc(userId).collection('notifications').doc(notificationId);
+            await notifRef.delete();
             loggerService.logResponse('notificationService.deleteNotification', { success: true });
         } catch (error) {
             loggerService.logApiError('notificationService.deleteNotification', error);
@@ -91,8 +75,9 @@ export const notificationService = {
     sendNotification: async (userId: string, title: string, message: string, type: string = 'info', iconColor: string = '#4F46E5', color: string = '#E0E7FF') => {
         try {
             loggerService.logRequest('notificationService.sendNotification', { userId, title });
-            const notificationsRef = collection(db, 'users', userId, 'notifications');
-            await addDoc(notificationsRef, {
+            const notificationsRef = firestore().collection('users').doc(userId).collection('notifications');
+
+            await notificationsRef.add({
                 title,
                 message,
                 type,
@@ -102,6 +87,7 @@ export const notificationService = {
                 iconColor,
                 color
             });
+
             loggerService.logResponse('notificationService.sendNotification', { success: true });
         } catch (error) {
             loggerService.logApiError('notificationService.sendNotification', error);

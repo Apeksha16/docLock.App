@@ -1,35 +1,19 @@
-import {
-    doc,
-    setDoc,
-    getDoc,
-    updateDoc,
-    collection,
-    query,
-    where,
-    getDocs,
-    onSnapshot,
-    deleteDoc,
-    addDoc,
-    writeBatch,
-    increment,
-    orderBy,
-    limit
-} from "firebase/firestore";
-import { db } from "../firebaseConfig";
+// @ts-ignore
+import firestore from '@react-native-firebase/firestore';
 import { loggerService } from "./loggerService";
 import { encryptionService } from "./encryptionService";
 
 const updateParentMetaCount = async (userId: string, parentId: string | null, incrementBy: number) => {
     if (!parentId) return;
     try {
-        const parentRef = doc(db, "users", userId, "documents", parentId);
-        const parentSnap = await getDoc(parentRef);
+        const parentRef = firestore().collection("users").doc(userId).collection("documents").doc(parentId);
+        const parentSnap = await parentRef.get();
 
-        if (parentSnap.exists()) {
+        if (typeof (parentSnap as any).exists === 'function' ? parentSnap.exists() : parentSnap.exists) {
             const data = parentSnap.data();
             let currentCount = 0;
 
-            if (data.meta && typeof data.meta === 'string' && data.meta.includes('items')) {
+            if (data?.meta && typeof data.meta === 'string' && data.meta.includes('items')) {
                 const parts = data.meta.split(' ');
                 currentCount = parseInt(parts[0], 10);
                 if (isNaN(currentCount)) currentCount = 0;
@@ -37,7 +21,7 @@ const updateParentMetaCount = async (userId: string, parentId: string | null, in
 
             const newCount = Math.max(0, currentCount + incrementBy);
 
-            await updateDoc(parentRef, {
+            await parentRef.update({
                 meta: `${newCount} items`
             });
         }
@@ -45,28 +29,29 @@ const updateParentMetaCount = async (userId: string, parentId: string | null, in
         loggerService.logApiError('firestoreService.updateParentMetaCount', error);
     }
 };
+
 const addNotificationHelper = async (userId: string, notification: { title: string, message: string, type: 'qr' | 'system' | 'alert' }) => {
     if (!userId) {
         return;
     }
     try {
-        const notifRef = collection(db, "users", userId, "notifications");
+        const notifRef = firestore().collection("users").doc(userId).collection("notifications");
 
-        await addDoc(notifRef, {
+        await notifRef.add({
             ...notification,
             read: false,
             createdAt: new Date().toISOString(),
             timestamp: Date.now()
         });
 
-        const q = query(notifRef, orderBy('timestamp', 'desc'));
-        const snapshot = await getDocs(q);
+        const q = notifRef.orderBy('timestamp', 'desc');
+        const snapshot = await q.get();
 
         if (snapshot.size > 20) {
-            const batch = writeBatch(db);
+            const batch = firestore().batch();
             const docsToDelete = snapshot.docs.slice(20);
 
-            docsToDelete.forEach(doc => {
+            docsToDelete.forEach((doc: any) => {
                 batch.delete(doc.ref);
             });
 
@@ -85,8 +70,8 @@ export const firestoreService = {
     saveUserProfile: async (uid: string, data: any) => {
         try {
             loggerService.logRequest('firestoreService.saveUserProfile', { uid, data });
-            const userRef = doc(db, "users", uid);
-            await setDoc(userRef, {
+            const userRef = firestore().collection("users").doc(uid);
+            await userRef.set({
                 ...data,
                 updatedAt: new Date().toISOString()
             }, { merge: true });
@@ -103,9 +88,9 @@ export const firestoreService = {
     getUserProfile: async (uid: string) => {
         try {
             loggerService.logRequest('firestoreService.getUserProfile', { uid });
-            const userRef = doc(db, "users", uid);
-            const userSnap = await getDoc(userRef);
-            if (userSnap.exists()) {
+            const userRef = firestore().collection("users").doc(uid);
+            const userSnap = await userRef.get();
+            if (typeof (userSnap as any).exists === 'function' ? userSnap.exists() : userSnap.exists) {
                 const data = userSnap.data();
                 const userProfile = { uid: userSnap.id, id: userSnap.id, ...data };
                 loggerService.logResponse('firestoreService.getUserProfile', { found: true, data: userProfile });
@@ -125,8 +110,8 @@ export const firestoreService = {
     addDocument: async (collectionName: string, docId: string, data: any) => {
         try {
             loggerService.logRequest(`firestoreService.addDocument(${collectionName})`, { docId, data });
-            const docRef = doc(db, collectionName, docId);
-            await setDoc(docRef, {
+            const docRef = firestore().collection(collectionName).doc(docId);
+            await docRef.set({
                 ...data,
                 createdAt: new Date().toISOString()
             });
@@ -146,10 +131,10 @@ export const firestoreService = {
             const cleanNumber = mobileNumber.replace(/\D/g, '').slice(-10);
             const formattedNumber = `+91${cleanNumber}`;
 
-            const usersRef = collection(db, "users");
-            const q = query(usersRef, where("mobile", "in", [cleanNumber, formattedNumber]));
+            const usersRef = firestore().collection("users");
+            const q = usersRef.where("mobile", "in", [cleanNumber, formattedNumber]);
 
-            const querySnapshot = await getDocs(q);
+            const querySnapshot = await q.get();
             const exists = !querySnapshot.empty;
             loggerService.logResponse('firestoreService.checkUserExistsByMobile', { exists, checked: [cleanNumber, formattedNumber] });
             return exists;
@@ -164,9 +149,9 @@ export const firestoreService = {
      */
     subscribeToUserProfile: (uid: string, onUpdate: (data: any) => void) => {
         loggerService.logRequest('firestoreService.subscribeToUserProfile', { uid });
-        const userRef = doc(db, "users", uid);
-        const unsubscribe = onSnapshot(userRef, (doc) => {
-            if (doc.exists()) {
+        const userRef = firestore().collection("users").doc(uid);
+        const unsubscribe = userRef.onSnapshot((doc: any) => {
+            if (doc.exists) {
                 const data = doc.data();
                 loggerService.logResponse('firestoreService.subscribeToUserProfile', { update: true });
                 onUpdate(data);
@@ -174,7 +159,7 @@ export const firestoreService = {
                 loggerService.logResponse('firestoreService.subscribeToUserProfile', { exists: false });
                 onUpdate(null);
             }
-        }, (error) => {
+        }, (error: any) => {
             loggerService.logApiError('firestoreService.subscribeToUserProfile', error);
         });
         return unsubscribe;
@@ -186,10 +171,10 @@ export const firestoreService = {
     getAppConfig: async () => {
         try {
             loggerService.logRequest('firestoreService.getAppConfig');
-            const docRef = doc(db, "app_config", "global");
-            const docSnap = await getDoc(docRef);
+            const docRef = firestore().collection("app_config").doc("global");
+            const docSnap = await docRef.get();
 
-            if (docSnap.exists()) {
+            if (typeof (docSnap as any).exists === 'function' ? docSnap.exists() : docSnap.exists) {
                 const data = docSnap.data();
                 loggerService.logResponse('firestoreService.getAppConfig', data);
                 return data;
@@ -208,10 +193,10 @@ export const firestoreService = {
     updateStorageUsage: async (userId: string, sizeChangeBytes: number) => {
         try {
             loggerService.logRequest('firestoreService.updateStorageUsage', { userId, sizeChangeBytes });
-            const userRef = doc(db, "users", userId);
+            const userRef = firestore().collection("users").doc(userId);
 
-            await updateDoc(userRef, {
-                storageUsed: increment(sizeChangeBytes)
+            await userRef.update({
+                storageUsed: firestore.FieldValue.increment(sizeChangeBytes)
             });
             loggerService.logResponse('firestoreService.updateStorageUsage', { success: true });
         } catch (error) {
@@ -226,8 +211,8 @@ export const firestoreService = {
     updateUserProfileImage: async (userId: string, photoURL: string, photoSize: number = 0) => {
         try {
             loggerService.logRequest('firestoreService.updateUserProfileImage', { userId, photoURL, photoSize });
-            const userRef = doc(db, "users", userId);
-            await updateDoc(userRef, {
+            const userRef = firestore().collection("users").doc(userId);
+            await userRef.update({
                 photoURL: photoURL,
                 photoSize: photoSize,
                 updatedAt: new Date().toISOString()
@@ -244,8 +229,8 @@ export const firestoreService = {
     updateUserMpin: async (userId: string, mpinHash: string) => {
         try {
             loggerService.logRequest('firestoreService.updateUserMpin', { userId });
-            const userRef = doc(db, "users", userId);
-            await updateDoc(userRef, {
+            const userRef = firestore().collection("users").doc(userId);
+            await userRef.update({
                 mpin: mpinHash,
                 updatedAt: new Date().toISOString()
             });
@@ -261,12 +246,12 @@ export const firestoreService = {
     deleteCollection: async (path: string) => {
         try {
             loggerService.logRequest('firestoreService.deleteCollection', { path });
-            const colRef = collection(db, path);
-            const snapshot = await getDocs(colRef);
+            const colRef = firestore().collection(path);
+            const snapshot = await colRef.get();
 
-            const batch = writeBatch(db);
+            const batch = firestore().batch();
 
-            snapshot.docs.forEach((doc) => {
+            snapshot.docs.forEach((doc: any) => {
                 batch.delete(doc.ref);
             });
 
@@ -284,8 +269,8 @@ export const firestoreService = {
     deleteUserDocument: async (userId: string) => {
         try {
             loggerService.logRequest('firestoreService.deleteUserDocument', { userId });
-            const userRef = doc(db, "users", userId);
-            await deleteDoc(userRef);
+            const userRef = firestore().collection("users").doc(userId);
+            await userRef.delete();
             loggerService.logResponse('firestoreService.deleteUserDocument', { success: true });
         } catch (error) {
             loggerService.logApiError('firestoreService.deleteUserDocument', error);
@@ -300,9 +285,9 @@ export const firestoreService = {
         try {
             loggerService.logRequest('firestoreService.addFriend', { currentUserId, friendUserId });
 
-            const friendRef = doc(db, "users", currentUserId, "friends", friendUserId);
+            const friendRef = firestore().collection("users").doc(currentUserId).collection("friends").doc(friendUserId);
 
-            await setDoc(friendRef, {
+            await friendRef.set({
                 uid: friendUserId,
                 fullName: friendData.fullName || 'Unknown',
                 photoURL: friendData.photoURL || null,
@@ -323,9 +308,9 @@ export const firestoreService = {
     checkFriendExists: async (currentUserId: string, friendUserId: string) => {
         try {
             loggerService.logRequest('firestoreService.checkFriendExists', { currentUserId, friendUserId });
-            const friendRef = doc(db, "users", currentUserId, "friends", friendUserId);
-            const friendSnap = await getDoc(friendRef);
-            const exists = friendSnap.exists();
+            const friendRef = firestore().collection("users").doc(currentUserId).collection("friends").doc(friendUserId);
+            const friendSnap = await friendRef.get();
+            const exists = typeof (friendSnap as any).exists === 'function' ? friendSnap.exists() : friendSnap.exists;
             loggerService.logResponse('firestoreService.checkFriendExists', { exists });
             return exists;
         } catch (error) {
@@ -339,17 +324,17 @@ export const firestoreService = {
      */
     subscribeToDocuments: (userId: string, parentId: string | null, onUpdate: (docs: any[]) => void) => {
         loggerService.logRequest('firestoreService.subscribeToDocuments', { userId, parentId });
-        const docsRef = collection(db, "users", userId, "documents");
-        const q = query(docsRef, where("parentId", "==", parentId), where("deleted", "!=", true));
+        const docsRef = firestore().collection("users").doc(userId).collection("documents");
+        const q = docsRef.where("parentId", "==", parentId).where("deleted", "!=", true);
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const documents = snapshot.docs.map(doc => ({
+        const unsubscribe = q.onSnapshot((snapshot: any) => {
+            const documents = snapshot.docs.map((doc: any) => ({
                 id: doc.id,
                 ...doc.data()
             }));
             loggerService.logResponse('firestoreService.subscribeToDocuments', { count: documents.length });
             onUpdate(documents);
-        }, (error) => {
+        }, (error: any) => {
             loggerService.logApiError('firestoreService.subscribeToDocuments', error);
         });
         return unsubscribe;
@@ -361,8 +346,8 @@ export const firestoreService = {
     renameDocument: async (userId: string, docId: string, newName: string) => {
         try {
             loggerService.logRequest('firestoreService.renameDocument', { userId, docId, newName });
-            const docRef = doc(db, "users", userId, "documents", docId);
-            await updateDoc(docRef, {
+            const docRef = firestore().collection("users").doc(userId).collection("documents").doc(docId);
+            await docRef.update({
                 name: newName,
                 updatedAt: new Date().toISOString()
             });
@@ -379,11 +364,11 @@ export const firestoreService = {
     getDocuments: async (userId: string, parentId: string | null) => {
         try {
             loggerService.logRequest('firestoreService.getDocuments', { userId, parentId });
-            const docsRef = collection(db, "users", userId, "documents");
-            const q = query(docsRef, where("parentId", "==", parentId), where("deleted", "!=", true));
-            const snapshot = await getDocs(q);
+            const docsRef = firestore().collection("users").doc(userId).collection("documents");
+            const q = docsRef.where("parentId", "==", parentId).where("deleted", "!=", true);
+            const snapshot = await q.get();
 
-            const documents = snapshot.docs.map(doc => ({
+            const documents = snapshot.docs.map((doc: any) => ({
                 id: doc.id,
                 ...doc.data()
             }));
@@ -402,8 +387,8 @@ export const firestoreService = {
     createFolder: async (userId: string, name: string, parentId: string | null) => {
         try {
             loggerService.logRequest('firestoreService.createFolder', { userId, name, parentId });
-            const docsRef = collection(db, "users", userId, "documents");
-            await addDoc(docsRef, {
+            const docsRef = firestore().collection("users").doc(userId).collection("documents");
+            await docsRef.add({
                 type: 'folder',
                 name: name,
                 parentId: parentId || null,
@@ -430,11 +415,11 @@ export const firestoreService = {
     saveDocumentMetadata: async (userId: string, data: { name: string, type?: string, size: number, meta: string, downloadURL: string, parentId: string | null }) => {
         try {
             loggerService.logRequest('firestoreService.saveDocumentMetadata', { userId, data });
-            const docsRef = collection(db, "users", userId, "documents");
+            const docsRef = firestore().collection("users").doc(userId).collection("documents");
 
-            const batch = writeBatch(db);
+            const batch = firestore().batch();
 
-            const newDocRef = doc(docsRef);
+            const newDocRef = docsRef.doc();
 
             batch.set(newDocRef, {
                 type: data.type || 'file',
@@ -447,9 +432,9 @@ export const firestoreService = {
                 deleted: false
             });
 
-            const userRef = doc(db, "users", userId);
+            const userRef = firestore().collection("users").doc(userId);
             batch.update(userRef, {
-                documentsCount: increment(1)
+                documentsCount: firestore.FieldValue.increment(1)
             });
 
             await batch.commit();
@@ -471,23 +456,23 @@ export const firestoreService = {
     deleteDocument: async (userId: string, docId: string) => {
         try {
             loggerService.logRequest('firestoreService.deleteDocument', { userId, docId });
-            const docRef = doc(db, "users", userId, "documents", docId);
+            const docRef = firestore().collection("users").doc(userId).collection("documents").doc(docId);
 
-            const batch = writeBatch(db);
+            const batch = firestore().batch();
 
             batch.update(docRef, { deleted: true });
 
-            const userRef = doc(db, "users", userId);
+            const userRef = firestore().collection("users").doc(userId);
             batch.update(userRef, {
-                documentsCount: increment(-1)
+                documentsCount: firestore.FieldValue.increment(-1)
             });
 
             await batch.commit();
 
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
+            const docSnap = await docRef.get();
+            if (typeof (docSnap as any).exists === 'function' ? docSnap.exists() : docSnap.exists) {
                 const docData = docSnap.data();
-                if (docData.parentId) {
+                if (docData?.parentId) {
                     await updateParentMetaCount(userId, docData.parentId, -1);
                 }
             }
@@ -522,16 +507,16 @@ export const firestoreService = {
                 cardNumberMasked: String(cardData.cardNumber || '').slice(-4),
                 createdAt: new Date().toISOString()
             };
-            const batch = writeBatch(db);
+            const batch = firestore().batch();
 
-            const cardsCollectionRef = collection(db, "users", userId, "cards");
-            const newCardRef = doc(cardsCollectionRef);
+            const cardsCollectionRef = firestore().collection("users").doc(userId).collection("cards");
+            const newCardRef = cardsCollectionRef.doc();
 
             batch.set(newCardRef, encryptedCard);
 
-            const userRef = doc(db, "users", userId);
+            const userRef = firestore().collection("users").doc(userId);
             batch.update(userRef, {
-                cardsCount: increment(1)
+                cardsCount: firestore.FieldValue.increment(1)
             });
 
             await batch.commit();
@@ -555,11 +540,10 @@ export const firestoreService = {
     getCards: async (userId: string) => {
         try {
             loggerService.logRequest('firestoreService.getCards', { userId });
-            const cardsRef = collection(db, "users", userId, "cards");
-            const q = query(cardsRef);
-            const snapshot = await getDocs(q);
+            const cardsRef = firestore().collection("users").doc(userId).collection("cards");
+            const snapshot = await cardsRef.get();
 
-            const cards = snapshot.docs.map(doc => ({
+            const cards = snapshot.docs.map((doc: any) => ({
                 id: doc.id,
                 ...doc.data()
             }));
@@ -577,15 +561,15 @@ export const firestoreService = {
      */
     subscribeToCards: (userId: string, onUpdate: (cards: any[]) => void) => {
         loggerService.logRequest('firestoreService.subscribeToCards', { userId });
-        const cardsRef = collection(db, "users", userId, "cards");
-        const unsubscribe = onSnapshot(cardsRef, (snapshot) => {
-            const cards = snapshot.docs.map(doc => ({
+        const cardsRef = firestore().collection("users").doc(userId).collection("cards");
+        const unsubscribe = cardsRef.onSnapshot((snapshot: any) => {
+            const cards = snapshot.docs.map((doc: any) => ({
                 id: doc.id,
                 ...doc.data()
             }));
             loggerService.logResponse('firestoreService.subscribeToCards', { count: cards.length });
             onUpdate(cards);
-        }, (error) => {
+        }, (error: any) => {
             loggerService.logApiError('firestoreService.subscribeToCards', error);
         });
         return unsubscribe;
@@ -597,13 +581,14 @@ export const firestoreService = {
     deleteCard: async (userId: string, cardId: string) => {
         try {
             loggerService.logRequest('firestoreService.deleteCard', { userId, cardId });
-            const cardRef = doc(db, "users", userId, "cards", cardId);
+            const cardRef = firestore().collection("users").doc(userId).collection("cards").doc(cardId);
 
-            const cardSnap = await getDoc(cardRef);
-            const cardData = cardSnap.exists() ? cardSnap.data() : null;
+            const cardSnap = await cardRef.get();
+            const exists = typeof (cardSnap as any).exists === 'function' ? cardSnap.exists() : cardSnap.exists;
+            const cardData = exists ? cardSnap.data() : null;
             const cardName = cardData?.cardName || 'Card';
 
-            await deleteDoc(cardRef);
+            await cardRef.delete();
 
             await addNotificationHelper(userId, {
                 title: 'Card Deleted',
@@ -624,7 +609,7 @@ export const firestoreService = {
     updateCard: async (userId: string, cardId: string, cardData: any) => {
         try {
             loggerService.logRequest('firestoreService.updateCard', { userId, cardId, cardData });
-            const cardRef = doc(db, "users", userId, "cards", cardId);
+            const cardRef = firestore().collection("users").doc(userId).collection("cards").doc(cardId);
 
             const updates: any = { ...cardData };
 
@@ -641,7 +626,7 @@ export const firestoreService = {
 
             updates.updatedAt = new Date().toISOString();
 
-            await setDoc(cardRef, updates, { merge: true });
+            await cardRef.set(updates, { merge: true });
 
             await addNotificationHelper(userId, {
                 title: 'Card Updated',
@@ -662,10 +647,10 @@ export const firestoreService = {
     getFriends: async (userId: string) => {
         try {
             loggerService.logRequest('firestoreService.getFriends', { userId });
-            const friendsRef = collection(db, "users", userId, "friends");
-            const snapshot = await getDocs(friendsRef);
+            const friendsRef = firestore().collection("users").doc(userId).collection("friends");
+            const snapshot = await friendsRef.get();
 
-            const friends = snapshot.docs.map(doc => ({
+            const friends = snapshot.docs.map((doc: any) => ({
                 id: doc.id,
                 ...doc.data()
             }));
@@ -684,11 +669,11 @@ export const firestoreService = {
     getAllFiles: async (userId: string) => {
         try {
             loggerService.logRequest('firestoreService.getAllFiles', { userId });
-            const docsRef = collection(db, "users", userId, "documents");
-            const q = query(docsRef, where("type", "==", "file"), where("deleted", "!=", true));
-            const snapshot = await getDocs(q);
+            const docsRef = firestore().collection("users").doc(userId).collection("documents");
+            const q = docsRef.where("type", "==", "file").where("deleted", "!=", true);
+            const snapshot = await q.get();
 
-            const files = snapshot.docs.map(doc => ({
+            const files = snapshot.docs.map((doc: any) => ({
                 id: doc.id,
                 ...doc.data()
             }));
@@ -707,8 +692,8 @@ export const firestoreService = {
     deleteFriend: async (userId: string, friendId: string) => {
         try {
             loggerService.logRequest('firestoreService.deleteFriend', { userId, friendId });
-            const friendRef = doc(db, "users", userId, "friends", friendId);
-            await deleteDoc(friendRef);
+            const friendRef = firestore().collection("users").doc(userId).collection("friends").doc(friendId);
+            await friendRef.delete();
             loggerService.logResponse('firestoreService.deleteFriend', { success: true });
         } catch (error) {
             loggerService.logApiError('firestoreService.deleteFriend', error);
@@ -723,10 +708,10 @@ export const firestoreService = {
         try {
             loggerService.logRequest('firestoreService.addSecureQR', { userId, qrData });
 
-            const batch = writeBatch(db);
+            const batch = firestore().batch();
 
-            const qrsRef = collection(db, "users", userId, "qrs");
-            const newQrRef = doc(qrsRef);
+            const qrsRef = firestore().collection("users").doc(userId).collection("qrs");
+            const newQrRef = qrsRef.doc();
 
             const newItem = {
                 ...qrData,
@@ -736,9 +721,9 @@ export const firestoreService = {
 
             batch.set(newQrRef, newItem);
 
-            const userRef = doc(db, "users", userId);
+            const userRef = firestore().collection("users").doc(userId);
             batch.update(userRef, {
-                qrsCount: increment(1)
+                qrsCount: firestore.FieldValue.increment(1)
             });
 
             await batch.commit();
@@ -763,9 +748,9 @@ export const firestoreService = {
         try {
             loggerService.logRequest('firestoreService.sendRequest', { requesterId, targetId, targetName, type, item });
 
-            const userRef = doc(db, "users", requesterId);
-            await updateDoc(userRef, {
-                activeRequestsCount: increment(1)
+            const userRef = firestore().collection("users").doc(requesterId);
+            await userRef.update({
+                activeRequestsCount: firestore.FieldValue.increment(1)
             });
 
             await addNotificationHelper(requesterId, {
@@ -787,10 +772,10 @@ export const firestoreService = {
     getSecureQRs: async (userId: string) => {
         try {
             loggerService.logRequest('firestoreService.getSecureQRs', { userId });
-            const qrsRef = collection(db, "users", userId, "qrs");
-            const snapshot = await getDocs(qrsRef);
+            const qrsRef = firestore().collection("users").doc(userId).collection("qrs");
+            const snapshot = await qrsRef.get();
 
-            const qrs = snapshot.docs.map(doc => ({
+            const qrs = snapshot.docs.map((doc: any) => ({
                 id: doc.id,
                 ...doc.data()
             }));
@@ -804,26 +789,22 @@ export const firestoreService = {
     },
 
     /**
-     * Update Secure QR
+     * Subscribe to Secure QRs
      */
-    updateSecureQR: async (userId: string, qrId: string, updates: { documentIds: string[], filesCount: number }, qrLabel: string) => {
-        try {
-            loggerService.logRequest('firestoreService.updateSecureQR', { userId, qrId, updates });
-
-            const qrRef = doc(db, "users", userId, "qrs", qrId);
-            await updateDoc(qrRef, updates);
-
-            loggerService.logResponse('firestoreService.updateSecureQR', { success: true });
-
-            await addNotificationHelper(userId, {
-                title: 'Secure QR Updated',
-                message: `Secure QR "${qrLabel}" and its linked documents have been updated.`,
-                type: 'qr'
-            });
-        } catch (error) {
-            loggerService.logApiError('firestoreService.updateSecureQR', error);
-            throw error;
-        }
+    subscribeToSecureQRs: (userId: string, onUpdate: (qrs: any[]) => void) => {
+        loggerService.logRequest('firestoreService.subscribeToSecureQRs', { userId });
+        const qrsRef = firestore().collection("users").doc(userId).collection("qrs");
+        const unsubscribe = qrsRef.onSnapshot((snapshot: any) => {
+            const qrs = snapshot.docs.map((doc: any) => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            loggerService.logResponse('firestoreService.subscribeToSecureQRs', { count: qrs.length });
+            onUpdate(qrs);
+        }, (error: any) => {
+            loggerService.logApiError('firestoreService.subscribeToSecureQRs', error);
+        });
+        return unsubscribe;
     },
 
     /**
@@ -832,29 +813,53 @@ export const firestoreService = {
     deleteSecureQR: async (userId: string, qrId: string, qrLabel: string) => {
         try {
             loggerService.logRequest('firestoreService.deleteSecureQR', { userId, qrId });
+            const qrRef = firestore().collection("users").doc(userId).collection("qrs").doc(qrId);
 
-            const batch = writeBatch(db);
-
-            const qrRef = doc(db, "users", userId, "qrs", qrId);
+            const batch = firestore().batch();
             batch.delete(qrRef);
 
-            const userRef = doc(db, "users", userId);
+            const userRef = firestore().collection("users").doc(userId);
             batch.update(userRef, {
-                qrsCount: increment(-1)
+                qrsCount: firestore.FieldValue.increment(-1)
             });
 
             await batch.commit();
 
-            loggerService.logResponse('firestoreService.deleteSecureQR', { success: true });
-
             await addNotificationHelper(userId, {
-                title: 'Secure QR Deleted',
-                message: `Secure QR "${qrLabel}" has been permanently removed.`,
-                type: 'qr'
+                title: 'QR Deleted',
+                message: `Secure QR "${qrLabel}" has been deleted.`,
+                type: 'alert'
             });
 
+            loggerService.logResponse('firestoreService.deleteSecureQR', { success: true });
         } catch (error) {
             loggerService.logApiError('firestoreService.deleteSecureQR', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Update Secure QR
+     */
+    updateSecureQR: async (userId: string, qrId: string, updates: any, label: string) => {
+        try {
+            loggerService.logRequest('firestoreService.updateSecureQR', { userId, qrId });
+            const qrRef = firestore().collection("users").doc(userId).collection("qrs").doc(qrId);
+
+            await qrRef.update({
+                ...updates,
+                updatedAt: new Date().toISOString()
+            });
+
+            await addNotificationHelper(userId, {
+                title: 'QR Updated',
+                message: `Secure QR "${label}" has been updated.`,
+                type: 'system'
+            });
+
+            loggerService.logResponse('firestoreService.updateSecureQR', { success: true });
+        } catch (error) {
+            loggerService.logApiError('firestoreService.updateSecureQR', error);
             throw error;
         }
     },
@@ -864,39 +869,18 @@ export const firestoreService = {
      */
     subscribeToFriends: (userId: string, onUpdate: (friends: any[]) => void) => {
         loggerService.logRequest('firestoreService.subscribeToFriends', { userId });
-        const friendsRef = collection(db, "users", userId, "friends");
-        const q = query(friendsRef, orderBy('addedAt', 'desc'));
+        const friendsRef = firestore().collection("users").doc(userId).collection("friends");
+        const q = friendsRef.orderBy('addedAt', 'desc');
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const friends = snapshot.docs.map(doc => ({
+        const unsubscribe = q.onSnapshot((snapshot: any) => {
+            const friends = snapshot.docs.map((doc: any) => ({
                 id: doc.id,
                 ...doc.data()
             }));
             loggerService.logResponse('firestoreService.subscribeToFriends', { count: friends.length });
             onUpdate(friends);
-        }, (error) => {
+        }, (error: any) => {
             loggerService.logApiError('firestoreService.subscribeToFriends', error);
-        });
-        return unsubscribe;
-    },
-
-    /**
-     * Subscribe to Secure QRs (Real-time)
-     */
-    subscribeToSecureQRs: (userId: string, onUpdate: (qrs: any[]) => void) => {
-        loggerService.logRequest('firestoreService.subscribeToSecureQRs', { userId });
-        const qrsRef = collection(db, "users", userId, "qrs");
-        const q = query(qrsRef, orderBy('createdAt', 'desc'));
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const qrs = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            loggerService.logResponse('firestoreService.subscribeToSecureQRs', { count: qrs.length });
-            onUpdate(qrs);
-        }, (error) => {
-            loggerService.logApiError('firestoreService.subscribeToSecureQRs', error);
         });
         return unsubscribe;
     },

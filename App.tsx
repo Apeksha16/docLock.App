@@ -1,4 +1,3 @@
-import './crypto-polyfill';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View, Text } from 'react-native';
 import { useEffect, useState, useRef } from 'react';
@@ -52,80 +51,80 @@ export default function App() {
   useEffect(() => {
     try {
       const unsubscribeAuth = authService.subscribeToAuthChanges(async (currentUser) => {
-      if (profileUnsubRef.current) {
-        profileUnsubRef.current();
-        profileUnsubRef.current = null;
-      }
-      if (notifsUnsubRef.current) {
-        notifsUnsubRef.current();
-        notifsUnsubRef.current = null;
-      }
-      if (cardsUnsubRef.current) {
-        cardsUnsubRef.current();
-        cardsUnsubRef.current = null;
-      }
-
-      setUser(currentUser);
-
-      if (currentUser) {
-        firestoreService.getAppConfig().then((config) => {
-          setAppConfig(config);
-        }).catch((error) => {
-          // Error fetching app config
-        });
-
-        try {
-          profileUnsubRef.current = firestoreService.subscribeToUserProfile(currentUser.uid, (data) => {
-            setUserProfile(data);
-          });
-        } catch (error) {
-          // Error subscribing to profile
+        if (profileUnsubRef.current) {
+          profileUnsubRef.current();
+          profileUnsubRef.current = null;
+        }
+        if (notifsUnsubRef.current) {
+          notifsUnsubRef.current();
+          notifsUnsubRef.current = null;
+        }
+        if (cardsUnsubRef.current) {
+          cardsUnsubRef.current();
+          cardsUnsubRef.current = null;
         }
 
-        try {
-          notifsUnsubRef.current = notificationService.subscribeToNotifications(currentUser.uid, (notifs) => {
-            setNotifications(notifs);
-          });
-        } catch (error) {
-          // Error subscribing to notifications
-        }
+        setUser(currentUser);
 
-        try {
-          cardsUnsubRef.current = firestoreService.subscribeToCards(currentUser.uid, (data) => {
-            setCards(data);
-          });
-        } catch (error) {
-          // Error subscribing to cards
-        }
-      } else {
-        setUserProfile(null);
-        setNotifications([]);
-        setCards([]);
-        setAppConfig(null);
-        setCurrentScreen('login');
-      }
-    });
-
-    const timer = setTimeout(() => {
-      setShowSplash(false);
-      
-      try {
-        const currentUser = authService.getCurrentUser();
-        
         if (currentUser) {
-          setCurrentScreen('dashboard');
+          firestoreService.getAppConfig().then((config) => {
+            setAppConfig(config);
+          }).catch((error) => {
+            // Error fetching app config
+          });
+
+          try {
+            profileUnsubRef.current = firestoreService.subscribeToUserProfile(currentUser.uid, (data) => {
+              setUserProfile(data);
+            });
+          } catch (error) {
+            // Error subscribing to profile
+          }
+
+          try {
+            notifsUnsubRef.current = notificationService.subscribeToNotifications(currentUser.uid, (notifs) => {
+              setNotifications(notifs);
+            });
+          } catch (error) {
+            // Error subscribing to notifications
+          }
+
+          try {
+            cardsUnsubRef.current = firestoreService.subscribeToCards(currentUser.uid, (data) => {
+              setCards(data);
+            });
+          } catch (error) {
+            // Error subscribing to cards
+          }
         } else {
+          setUserProfile(null);
+          setNotifications([]);
+          setCards([]);
+          setAppConfig(null);
           setCurrentScreen('login');
         }
-      } catch (error) {
-        setCurrentScreen('login');
-      }
-    }, 3000);
+      });
 
-    return () => {
-      clearTimeout(timer);
-      unsubscribeAuth();
-    };
+      const timer = setTimeout(() => {
+        setShowSplash(false);
+
+        try {
+          const currentUser = authService.getCurrentUser();
+
+          if (currentUser) {
+            setCurrentScreen('dashboard');
+          } else {
+            setCurrentScreen('login');
+          }
+        } catch (error) {
+          setCurrentScreen('login');
+        }
+      }, 3000);
+
+      return () => {
+        clearTimeout(timer);
+        unsubscribeAuth();
+      };
     } catch (error) {
       // Error in useEffect
     }
@@ -222,7 +221,7 @@ export default function App() {
   } catch (error) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={{ color: 'white' }}>Error: {error?.message || 'Unknown error'}</Text>
+        <Text style={{ color: 'white' }}>Error: {(error as any)?.message || 'Unknown error'}</Text>
       </View>
     );
   }

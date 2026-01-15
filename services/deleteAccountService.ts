@@ -1,3 +1,4 @@
+import auth from '@react-native-firebase/auth'; // Static import for types and instance if needed
 import { firestoreService } from './firestoreService';
 import { storageService } from './storageService';
 import { loggerService } from './loggerService';
@@ -24,7 +25,8 @@ export const deleteAccountService = {
 
             if (currentUser) {
                 try {
-                    const auth = (await import('@react-native-firebase/auth')).default();
+                    // Check if we need to re-authenticate or if token is fresh enough
+                    // Native SDK automatically handles checking token validity on delete
                     await currentUser.delete();
                     loggerService.logResponse('deleteAccountService.deleteUserAccount', { authDeleted: true });
                 } catch (authError: any) {
